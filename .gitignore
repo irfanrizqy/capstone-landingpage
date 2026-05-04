@@ -1,0 +1,34 @@
+@'
+# Python cache
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Logs
+logs/
+*.log
+
+# Secrets / local config
+.env
+*.pem
+*.key
+*.crt
+*.db
+*.sqlite
+*.sqlite3
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+'@ | Set-Content -Encoding UTF8 .gitignoreconfig.py
+
+# Local VM-specific config
+config.py

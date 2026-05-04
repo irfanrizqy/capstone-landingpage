@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Capstone Design Kelompok 4 — Proyek Tugas Akhir mahasiswa yang menghadirkan solusi inovatif melalui teknologi." />
+  <title>CD-4 | Capstone Design Kelompok 4</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+</head>
+<body>
+
+  <!-- ==================== NAVBAR ==================== -->
+  <header class="navbar" id="navbar">
+    <div class="container navbar__inner">
+      <a href="#home" class="navbar__logo">
+        <span>CD-4</span>
+      </a>
+
+      <nav class="navbar__links" id="navLinks">
+        <a href="#home"   class="navbar__link active" data-section="home">Home</a>
+        <a href="#about"  class="navbar__link" data-section="about">About</a>
+        <a href="#goals"  class="navbar__link" data-section="goals">Goals</a>
+        <a href="#member" class="navbar__link" data-section="member">Member</a>
+        <a href="#demo"   class="navbar__link" data-section="demo">Demo</a>
+      </nav>
+
+      <button class="navbar__toggle" id="navToggle" aria-label="Toggle menu">
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== HOME / HERO ==================== -->
+  <section class="hero" id="home">
+    <!-- Decorative background blobs -->
+    <div class="hero__bg-decor hero__bg-decor--1"></div>
+    <div class="hero__bg-decor hero__bg-decor--2"></div>
+    <div class="hero__bg-decor hero__bg-decor--3"></div>
+
+    <div class="container hero__inner">
+      <div class="hero__content">
+        <div class="hero__badge">Capstone Design</div>
+        <div class="hero__server-badge">
+          <span class="hero__server-dot"></span>
+          Request dilayani oleh: <strong>{{ server_name }}</strong>
+        </div>
+        <h1 class="hero__title">
+          Capstone Design<br />
+          <span>Kelompok 4</span>
+        </h1>
+        <h4 class="hero__subtitle">
+          Sistem Smart Load Balancing berbasis Adaptive Machine Learning
+        </h4>
+        <p class="hero__description">
+          Proyek ini mengembangkan sistem smart load balancing berbasis Q-Learning
+  yang mampu memilih server tujuan secara adaptif berdasarkan kondisi trafik
+  dan performa server secara real-time, sehingga distribusi beban menjadi
+  lebih efisien, stabil, dan responsif.
+        </p>
+        <div class="hero__cta-group">
+          <a href="#demo" class="btn btn--primary">
+            Lihat Demo
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </a>
+          <a href="#about" class="btn btn--outline">Pelajari Lebih</a>
+        </div>
+      </div>
+
+      <div class="hero__image">
+        <img src="{{ url_for('static', filename='assets/images/hero-illustration-removebg.png') }}" alt="Capstone Design Team Illustration" />
+      </div>
+    </div>
+
+    <div class="hero__scroll-indicator">
+      <div class="mouse"></div>
+      <span>Scroll Down</span>
+    </div>
+  </section>
+
+  <!-- ==================== ABOUT ==================== -->
+  <section class="section section--alt" id="about">
+    <div class="container">
+      <div class="section__header animate-on-scroll">
+        <span class="section__label">Tentang Project</span>
+        <h2 class="section__title">About Our Project</h2>
+        <p class="section__subtitle">  Mengenal latar belakang, pendekatan, dan alasan pengembangan sistem smart load balancing adaptif.
+</p>
+      </div>
+
+      <div class="about__grid">
+        <div class="about__image-wrapper animate-on-scroll">
+          <div class="about__accent about__accent--top"></div>
+          <div class="about__accent about__accent--bottom"></div>
+          <img src="{{ url_for('static', filename='assets/images/about-illustration-2.png') }}" alt="About Project Illustration" />
+        </div>
+
+        <div class="about__content animate-on-scroll">
+          <h3>Membangun Solusi <span>Inovatif</span> untuk Masa Depan</h3>
+          <p class="about__text">
+          Pertumbuhan trafik jaringan menuntut sistem distribusi beban yang mampu
+  menjaga performa layanan tetap stabil. Namun, metode load balancing
+  konvensional umumnya masih menggunakan aturan statis sehingga kurang
+  responsif terhadap perubahan kondisi server dan trafik.
+          </p>
+          <p class="about__text">
+          Oleh karena itu, proyek ini mengembangkan smart load balancing berbasis
+  Q-Learning untuk mempelajari pola kondisi server dan menentukan server
+  tujuan secara adaptif berdasarkan metrik performa yang tersedia.
+          </p>
+          <p class="about__text">
+          Dengan pendekatan ini, sistem diharapkan dapat mengurangi risiko overload,
+  meningkatkan pemerataan beban, serta menjaga kualitas layanan ketika trafik
+  berubah secara dinamis.
+          </p>
+
+          <div class="about__features">
+            <div class="about__feature">
+              <div class="about__feature-icon">🔬</div>
+              <span class="about__feature-text">Riset Mendalam</span>
+            </div>
+            <div class="about__feature">
+              <div class="about__feature-icon">💡</div>
+              <span class="about__feature-text">Solusi Inovatif</span>
+            </div>
+            <div class="about__feature">
+              <div class="about__feature-icon">🛠️</div>
+              <span class="about__feature-text">Teknologi Modern</span>
+            </div>
+            <div class="about__feature">
+              <div class="about__feature-icon">🎯</div>
+              <span class="about__feature-text">Dampak Nyata</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== GOALS ==================== -->
+  <section class="section" id="goals">
+    <div class="container">
+      <div class="section__header animate-on-scroll">
+        <span class="section__label">Tujuan Proyek</span>
+        <h2 class="section__title">Our Goals</h2>
+        <p class="section__subtitle">  Tujuan utama proyek ini adalah merancang, menguji, dan mengevaluasi sistem load balancing yang lebih adaptif terhadap kondisi jaringan.
+</p>
+      </div>
+
+      <div class="goals__cards animate-on-scroll">
+        <!-- Card 1 -->
+        <div class="goal-card active" data-goal="innovation" onclick="switchGoal('innovation')">
+          <img class="goal-card__image" src="{{ url_for('static', filename='assets/images/goals-innovation.png') }}" alt="Innovation" />
+          <div class="goal-card__overlay">
+            <div class="goal-card__label">
+              Innovation
+              <span class="arrow">↗</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="goal-card" data-goal="efficiency" onclick="switchGoal('efficiency')">
+          <img class="goal-card__image" src="{{ url_for('static', filename='assets/images/goals-efficiency.png') }}" alt="Efficiency" />
+          <div class="goal-card__overlay">
+            <div class="goal-card__label">
+              Efficiency
+              <span class="arrow">↗</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="goal-card" data-goal="impact" onclick="switchGoal('impact')">
+          <img class="goal-card__image" src="{{ url_for('static', filename='assets/images/goals-impact.png') }}" alt="Impact" />
+          <div class="goal-card__overlay">
+            <div class="goal-card__label">
+              Impact
+              <span class="arrow">↗</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description Panel that changes on click -->
+      <div class="goals__description-panel animate-on-scroll">
+        <div class="goal-desc active" id="goal-innovation">
+          <h3>
+            <span class="icon">🚀</span>
+            Mendorong Inovasi Teknologi
+          </h3>
+          <p>
+            Proyek ini menerapkan pendekatan Q-Learning pada load balancing untuk
+  memungkinkan sistem mempelajari kondisi server dan memilih jalur distribusi
+  beban berdasarkan performa aktual, bukan hanya aturan statis.
+          </p>
+        </div>
+        <div class="goal-desc" id="goal-efficiency">
+          <h3>
+            <span class="icon">⚡</span>
+            Meningkatkan Efisiensi Proses
+          </h3>
+          <p>
+          Sistem dirancang untuk meningkatkan efisiensi pemanfaatan sumber daya
+  dengan mendistribusikan request secara lebih seimbang, mengurangi potensi
+  overload pada server tertentu, dan menjaga response time tetap terkendali.
+          </p>
+        </div>
+        <div class="goal-desc" id="goal-impact">
+          <h3>
+            <span class="icon">🌍</span>
+            Memberikan Dampak Positif
+          </h3>
+          <p>
+          Implementasi sistem ini diharapkan dapat menjadi dasar pengembangan
+  load balancer adaptif yang lebih stabil, terukur, dan relevan untuk
+  lingkungan server dengan trafik yang berubah-ubah.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== MEMBER ==================== -->
+  <section class="section section--alt" id="member">
+    <div class="container">
+      <div class="section__header animate-on-scroll">
+        <span class="section__label">Tim Kami</span>
+        <h2 class="section__title">Meet Our Team</h2>
+        <p class="section__subtitle"> Tim pengembang yang berperan dalam perancangan, implementasi, dan pengujian sistem.</p>
+      </div>
+
+      <div class="members__grid animate-on-scroll">
+        <!-- Member 1 -->
+        <div class="member-card">
+          <img class="member-card__photo" src="{{ url_for('static', filename='assets/images/member-placeholder1.png') }}" alt="Foto Anggota 1" />
+          <h4 class="member-card__name">Muhammad Fachry <br> Abiwardhana</h4>
+          <p class="member-card__nim">NIM: 2211101009</p>
+          <span class="member-card__role">Ketua Kelompok</span>
+        </div>
+
+        <!-- Member 2 -->
+        <div class="member-card">
+          <img class="member-card__photo" src="{{ url_for('static', filename='assets/images/member-placeholder2.png') }}" alt="Foto Anggota 2" />
+          <h4 class="member-card__name">Irfan Rizqy <br> Aryanto</h4>
+          <p class="member-card__nim">NIM: 2211101095</p>
+          <span class="member-card__role">Anggota</span>
+        </div>
+
+        <!-- Member 3 -->
+        <div class="member-card">
+          <img class="member-card__photo" src="{{ url_for('static', filename='assets/images/member-placeholder3.png') }}" alt="Foto Anggota 3" />
+          <h4 class="member-card__name">Rono <br> DanuJatmiko</h4>
+          <p class="member-card__nim">NIM: 2211101019</p>
+          <span class="member-card__role">Anggota</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== DEMO ==================== -->
+  <section class="section section--green" id="demo">
+    <div class="container">
+      <div class="section__header animate-on-scroll">
+        <span class="section__label" style="color: var(--green-300);">Coba Sekarang</span>
+        <h2 class="section__title">Project Demo</h2>
+        <p class="section__subtitle"> Akses demo sistem untuk melihat implementasi load balancer dan web server yang digunakan dalam pengujian.</p>
+      </div>
+
+      <div class="demo__content animate-on-scroll">
+        <p class="demo__text">
+          Pada bagian ini, Anda dapat mengakses dashboard load balancer dan masing-masing
+  web server yang digunakan dalam pengujian. Demo ini membantu memperlihatkan
+  bagaimana request didistribusikan serta bagaimana performa server dipantau
+  selama proses load testing.
+
+        </p>
+
+        <!-- Row 1: Load Balancer Q-Learning (full width) -->
+        <div class="demo__buttons demo__buttons--lb">
+          <a href="http://192.168.100.30/dashboard" target="_blank" class="demo-btn demo-btn--main" id="demo-btn-lb">
+            <span>🎯 Load Balancer — Q-Learning</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+
+        <!-- Row 2: 3 Web Servers -->
+        <div class="demo__buttons demo__buttons--servers">
+          <a href="http://192.168.100.60/dashboard" target="_blank" class="demo-btn" id="demo-btn-ws1">
+            <span>🖥️ Web Server 1</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          <a href="http://192.168.100.45/dashboard" target="_blank" class="demo-btn" id="demo-btn-ws2">
+            <span>🖥️ Web Server 2</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          <a href="http://192.168.100.50/dashboard" target="_blank" class="demo-btn" id="demo-btn-ws3">
+            <span>🖥️ Web Server 3</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__grid">
+        <!-- Brand -->
+        <div class="footer__brand">
+          <a href="#home" class="footer__logo"><span>CD-4</span></a>
+          <p>
+            Capstone Design Kelompok 4 — Proyek tugas akhir yang berfokus pada
+  pengembangan smart load balancing berbasis machine learning untuk
+  meningkatkan distribusi beban server.
+          </p>
+        </div>
+
+        <!-- Quick Links -->
+        <div>
+          <h4 class="footer__heading">Quick Links</h4>
+          <a href="#home"   class="footer__link">Home</a>
+          <a href="#about"  class="footer__link">About</a>
+          <a href="#goals"  class="footer__link">Goals</a>
+          <a href="#member" class="footer__link">Member</a>
+          <a href="#demo"   class="footer__link">Demo</a>
+        </div>
+
+        <!-- Project -->
+        <div>
+          <h4 class="footer__heading">Project</h4>
+          <a href="https://github.com/irfanrizqy/smart-lb-qlearning" class="footer__link">Repository</a>
+          <a href="#" class="footer__link">Documentation</a>
+          <a href="#" class="footer__link">Presentation</a>
+        </div>
+
+
+      </div>
+
+      <div class="footer__bottom">
+        <p>&copy; 2026 CD-4 Capstone Design. All rights reserved.</p>
+        <div class="footer__bottom-links">
+          <a href="#">Telkom University Purwokerto</a>
+          <span style="color:var(--gray-400);font-size:.85rem;">S1 Teknik Telekomunikasi</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <script>
+    // --- Mobile Nav Toggle ---
+    const navToggle = document.getElementById('navToggle');
+    const navLinks  = document.getElementById('navLinks');
+
+    navToggle.addEventListener('click', () => {
+      navToggle.classList.toggle('open');
+      navLinks.classList.toggle('open');
+    });
+
+    // Close mobile menu on link click
+    document.querySelectorAll('.navbar__link').forEach(link => {
+      link.addEventListener('click', () => {
+        navToggle.classList.remove('open');
+        navLinks.classList.remove('open');
+      });
+    });
+
+    // --- Navbar Scroll Effect ---
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      navbar.classList.toggle('scrolled', window.scrollY > 50);
+    });
+
+    // --- Active Link on Scroll ---
+    const sections = document.querySelectorAll('section[id]');
+    const navbarLinks = document.querySelectorAll('.navbar__link');
+
+    function setActiveLink() {
+      const scrollY = window.scrollY + 120;
+      sections.forEach(section => {
+        const top    = section.offsetTop;
+        const height = section.offsetHeight;
+        const id     = section.getAttribute('id');
+
+        if (scrollY >= top && scrollY < top + height) {
+          navbarLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('data-section') === id) {
+              link.classList.add('active');
+            }
+          });
+        }
+      });
+    }
+
+    window.addEventListener('scroll', setActiveLink);
+
+    // --- Scroll Animations (Intersection Observer) ---
+    const observerOptions = {
+      threshold: 0.15,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, observerOptions);
+
+    document.querySelectorAll('.animate-on-scroll').forEach(el => {
+      observer.observe(el);
+    });
+
+    // --- Goals Interactive Cards ---
+    function switchGoal(goalId) {
+      // Update cards
+      document.querySelectorAll('.goal-card').forEach(card => {
+        card.classList.remove('active');
+      });
+      document.querySelector(`.goal-card[data-goal="${goalId}"]`).classList.add('active');
+
+      // Update description
+      document.querySelectorAll('.goal-desc').forEach(desc => {
+        desc.classList.remove('active');
+      });
+      document.getElementById(`goal-${goalId}`).classList.add('active');
+    }
+
+    // --- Members: center scroll position on load ---
+    window.addEventListener('load', () => {
+      const grid = document.querySelector('.members__grid');
+      if (!grid) return;
+      const cards = grid.querySelectorAll('.member-card');
+      if (cards.length === 0) return;
+
+      // Scroll to the middle card
+      const middleIndex = Math.floor(cards.length / 2);
+      const middleCard = cards[middleIndex];
+      const scrollPos = middleCard.offsetLeft - (grid.clientWidth / 2) + (middleCard.offsetWidth / 2);
+      grid.scrollLeft = Math.max(0, scrollPos);
+    });
+  </script>
+
+</body>
+</html>
