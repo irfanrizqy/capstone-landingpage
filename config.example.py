@@ -28,9 +28,9 @@ Untuk menghapus VM: hapus entri yang ditandai "# HAPUS JIKA TIDAK PERLU"
 # ==================== IDENTITAS SERVER ====================
 # !! GANTI BAGIAN INI SESUAI VM YANG SEDANG DIKONFIGURASI !!
 
-SERVER_NAME     = "Web Server Example"
-SERVER_IP       = "192.168.100.XX"
-SERVER_HOSTNAME = "hostname-vm"
+SERVER_NAME     = "Web Server 1 (DEV)"       # Nama tampil di dashboard
+SERVER_IP       = "192.168.100.xx"     # IP VM ini
+SERVER_HOSTNAME = "hostname-vm"           # Hostname VM ini
 
 # ==================== LAYANAN EKSTERNAL ====================
 # Sama untuk semua VM — tidak perlu diubah
@@ -107,7 +107,7 @@ DEFAULT_TARGET_URL = "http://192.168.100.30"  # URL default saat dashboard dibuk
 
 # ==================== PARAMETER LOAD TEST DEFAULT ====================
 
-DEFAULT_NUM_THREADS = 5
+DEFAULT_NUM_THREADS = 50
 DEFAULT_RAMP_TIME   = 10
 DEFAULT_DURATION    = 60
 DEFAULT_HTTP_PATH   = "/"
@@ -116,8 +116,8 @@ DEFAULT_HTTP_PATH   = "/"
 # Batasan untuk pengguna biasa (bukan admin).
 # Admin bisa melampaui semua batas ini setelah login dengan ADMIN_PASSWORD.
 
-ADMIN_PASSWORD = "CHANGE_ME"         # Password untuk aktifkan Admin Mode di dashboard
-USER_MAX_THREADS      = 5           # Maks users (threads) untuk user biasa
+ADMIN_PASSWORD        = "CHANGE_ME"  # Password untuk aktifkan Admin Mode di dashboard
+USER_MAX_THREADS      = 100           # Maks users (threads) untuk user biasa
 USER_MAX_DURATION     = 60          # Maks durasi (detik) untuk user biasa
 USER_MAX_PHASES       = 3           # Maks fase untuk user biasa di Multi-Phase test
 MAX_CONCURRENT_TESTS  = 5           # Maks test yang boleh berjalan bersamaan; lebih dari ini masuk antrian
