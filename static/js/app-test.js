@@ -156,7 +156,7 @@ function addPhase() {
     if (!isAdminMode && phases.length >= USER_MAX_PHASES) {
         alert(`User Mode: max ${USER_MAX_PHASES} fase.`); return;
     }
-    phases.push({ threads: isAdminMode ? 100 : USER_MAX_THREADS, rampTime: 10,
+    phases.push({ threads: isAdminMode ? 100 : USER_MAX_THREADS, rampTime: phases.length === 0 ? 10 : 0,
                   duration: isAdminMode ? 60 : USER_MAX_DURATION });
     renderPhases();
     renderSummary();

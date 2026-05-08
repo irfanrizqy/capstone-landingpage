@@ -37,6 +37,7 @@ let currentQueueId      = null;   // queue_id saat test sedang menunggu antrian
 let progressAnimInterval = null;
 let lastProgressData     = { progress: 0, elapsed: 0, timestamp: 0 };
 
+
 let responseTimeChart   = null;
 let successRateChart    = null;
 
@@ -107,6 +108,7 @@ function setBadge(text, color) {
 function showProgress(show) {
     document.getElementById('testProgressSection').style.display = show ? 'block' : 'none';
 }
+
 
 // ==================== TEST TYPE DETECTION ====================
 

@@ -28,6 +28,14 @@ async function fetchResults(isMulti) {
         const resp = await fetch(`/api/test/results/${currentTestId}`);
         const data = await resp.json();
 
+        // Hasil belum siap (post-processing masih berjalan di server) — retry tiap 2 detik
+        if (resp.status === 202 || data.status === 'processing') {
+            updateStatus('pending', '⏳ Memproses hasil test, harap tunggu...');
+            setBadge('Processing...', 'info');
+            await sleep(2000);
+            return fetchResults(isMulti);
+        }
+
         if (!resp.ok || !data.summary) {
             if (!isMulti) {
                 updateStatus('error', 'Gagal mengambil hasil.');

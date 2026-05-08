@@ -39,8 +39,8 @@ function setupDownloads() {
         }
     });
 
-    document.getElementById('downloadSummaryCsvBtn').addEventListener('click',  (e) => downloadCsv('summary',  e.currentTarget));
-    document.getElementById('downloadRequestsCsvBtn').addEventListener('click', (e) => downloadCsv('requests', e.currentTarget));
+    document.getElementById('downloadSummaryCsvBtn').addEventListener('click',  (e) => downloadCsv('summary', e.currentTarget));
+    document.getElementById('downloadRequestsCsvBtn').addEventListener('click', (e) => downloadRequestsCsvOnDemand(e.currentTarget));
 }
 
 /**
@@ -200,6 +200,128 @@ async function downloadCsv(type, btn) {
     } catch(e) {
         alert('Download gagal: ' + e.message);
         btn.innerHTML = orig; btn.disabled = false;
+    }
+}
+
+/**
+ * Download request-level CSV secara on-demand.
+ * Klik tombol → generate di server → progress bar → otomatis download saat siap.
+ */
+async function downloadRequestsCsvOnDemand(btn) {
+    const ids = allPhaseTestIds.length > 0 ? allPhaseTestIds : (currentTestId ? [currentTestId] : []);
+    if (!ids.length) { alert('Belum ada test selesai.'); return; }
+
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+
+    // Buat atau tampilkan progress bar
+    let progressEl = document.getElementById('csvGenerateProgress');
+    if (!progressEl) {
+        progressEl = document.createElement('div');
+        progressEl.id = 'csvGenerateProgress';
+        progressEl.style.cssText = 'margin-top:6px;';
+        progressEl.innerHTML =
+            '<div class="progress" style="height:5px;">' +
+              '<div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width:100%"></div>' +
+            '</div>' +
+            '<small id="csvGenerateMsg" class="text-muted" style="font-size:0.75rem;"></small>';
+        btn.parentNode.insertBefore(progressEl, btn.nextSibling);
+    }
+    progressEl.style.display = 'block';
+    const msgEl = document.getElementById('csvGenerateMsg');
+    const setMsg = (txt) => { if (msgEl) msgEl.textContent = txt; };
+
+    try {
+        if (ids.length === 1) {
+            // Single test — generate → poll → download langsung
+            setMsg('Memulai pemrosesan CSV...');
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Memproses...';
+            const genResp = await fetch(`/api/test/results/${ids[0]}/requests/csv/generate`, { method: 'POST' });
+            if (!genResp.ok) throw new Error('Gagal mulai generate');
+            const genData = await genResp.json();
+            if (genData.status === 'error') throw new Error(genData.message);
+
+            let elapsed = 0;
+            while (true) {
+                await sleep(2000); elapsed += 2;
+                const stResp = await fetch(`/api/test/results/${ids[0]}/requests/csv/status`);
+                if (!stResp.ok) continue;
+                const stData = await stResp.json();
+                if (stData.status === 'ready') break;
+                if (stData.status === 'error') throw new Error('Server error saat generate CSV');
+                setMsg(`Memproses log request... (${elapsed}s — biasanya 1–2 menit)`);
+            }
+
+            setMsg('Mengunduh CSV...');
+            const dlResp = await fetch(`/api/test/results/${ids[0]}/requests/csv`);
+            if (!dlResp.ok) throw new Error('Gagal unduh CSV');
+            triggerDownload(await dlResp.blob(), `${ids[0]}_requests.csv`);
+
+        } else {
+            // Multi-phase — generate+poll semua fase, fetch text, merge jadi 1 CSV
+            const phaseTexts = [];
+
+            for (let i = 0; i < ids.length; i++) {
+                const testId = ids[i];
+                const phaseLabel = ` (fase ${i+1}/${ids.length})`;
+
+                // 1. Generate
+                setMsg(`Memulai pemrosesan${phaseLabel}...`);
+                btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Memproses${phaseLabel}...`;
+                const genResp = await fetch(`/api/test/results/${testId}/requests/csv/generate`, { method: 'POST' });
+                if (!genResp.ok) throw new Error(`Gagal mulai generate${phaseLabel}`);
+                const genData = await genResp.json();
+                if (genData.status === 'error') throw new Error(genData.message);
+
+                // 2. Poll hingga ready
+                let elapsed = 0;
+                while (true) {
+                    await sleep(2000); elapsed += 2;
+                    const stResp = await fetch(`/api/test/results/${testId}/requests/csv/status`);
+                    if (!stResp.ok) continue;
+                    const stData = await stResp.json();
+                    if (stData.status === 'ready') break;
+                    if (stData.status === 'error') throw new Error(`Server error saat generate CSV${phaseLabel}`);
+                    setMsg(`Memproses log request${phaseLabel}... (${elapsed}s — biasanya 1–2 menit)`);
+                }
+
+                // 3. Ambil teks CSV (belum download)
+                setMsg(`Mengambil data${phaseLabel}...`);
+                const dlResp = await fetch(`/api/test/results/${testId}/requests/csv`);
+                if (!dlResp.ok) throw new Error(`Gagal ambil CSV${phaseLabel}`);
+                phaseTexts.push(await dlResp.text());
+            }
+
+            // 4. Merge semua fase menjadi 1 CSV dengan kolom phase di depan
+            setMsg('Menggabungkan semua fase...');
+            let header = null;
+            const rows = [];
+            for (let i = 0; i < phaseTexts.length; i++) {
+                const lines = phaseTexts[i]
+                    .replace(/^﻿/, '')
+                    .split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l && !l.startsWith('sep='));
+                if (lines.length < 2) continue;
+                if (!header) header = `phase;${lines[0]}`;
+                lines.slice(1).forEach(row => rows.push(`fase_${i+1};${row}`));
+            }
+            if (!header) throw new Error('Tidak ada data CSV.');
+
+            const csv  = `sep=;\n${header}\n${rows.join('\n')}`;
+            const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+            triggerDownload(blob, `multiphase_${ids[0]}_requests.csv`);
+        }
+
+        btn.innerHTML = '✅ Berhasil';
+        setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1500);
+
+    } catch(e) {
+        alert('Download gagal: ' + e.message);
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    } finally {
+        if (progressEl) progressEl.style.display = 'none';
     }
 }
 

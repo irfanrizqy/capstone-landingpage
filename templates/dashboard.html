@@ -418,7 +418,7 @@
             <div class="container-fluid px-4">
                 <div class="row mb-2">
                     <div class="col-12 text-center">
-                        <h6 class="mb-1"><strong>Web Testing Dashboard</strong> <span class="badge" style="background:var(--green-900)">v4.2</span></h6>
+                        <h6 class="mb-1"><strong>Web Testing Dashboard</strong> <span class="badge" style="background:var(--green-900)">v4.3</span></h6>
                         <small class="text-muted">Built by <strong>TUP-CD-2026-KEL4</strong> with ❤️</small>
                     </div>
                 </div>
@@ -458,13 +458,13 @@
         const USER_MAX_DURATION = {{ user_max_duration }};
         const USER_MAX_PHASES   = {{ user_max_phases }};
     </script>
-    <script src="{{ url_for('static', filename='js/app-state.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app-admin.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app-test.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app-poll.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app-results.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app-disk.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/metrics.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app-state.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/app-admin.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/app-test.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/app-poll.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/app-results.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/app-disk.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/metrics.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ app_version }}"></script>
 </body>
 </html>

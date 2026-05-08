@@ -307,10 +307,19 @@ def get_test_results(test_id):
 
     Respons berisi summary statistik (avg RT, throughput, error rate, dll.)
     dan data timeline per-detik untuk ditampilkan di grafik dashboard.
+
+    Jika JMeter API mengembalikan 202 (hasil masih diproses), proxy ini
+    menunggu di sini (maks 120 detik) sebelum dikembalikan ke browser.
     """
     try:
-        resp = _jmeter.get(f"{config.JMETER_API_URL}/api/load-test/results/{test_id}",
-                           timeout=15)
+        # Poll maks 15 detik — Phase 1 (parse stats) selesai dalam ~5s
+        # Tetap jauh di bawah timeout Cloudflare Tunnel (~100s)
+        for _ in range(8):
+            resp = _jmeter.get(f"{config.JMETER_API_URL}/api/load-test/results/{test_id}",
+                               timeout=15)
+            if resp.status_code != 202:
+                break
+            time.sleep(2)
         return jsonify(resp.json()), resp.status_code
     except http.exceptions.RequestException as e:
         logger.error(f"Error getting test results: {e}")

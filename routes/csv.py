@@ -83,5 +83,51 @@ def get_test_results_summary_csv(test_id):
 
 @csv_bp.route('/api/test/results/<test_id>/requests/csv', methods=['GET'])
 def get_test_results_requests_csv(test_id):
-    """Unduh hasil test sebagai CSV detail per-request."""
-    return _proxy_csv(test_id, 'requests')
+    """Unduh request-level CSV yang sudah di-generate on-demand."""
+    try:
+        resp = _jmeter.get(
+            f"{config.JMETER_API_URL}/api/load-test/results/{test_id}/requests-csv/download",
+            timeout=60
+        )
+        if resp.status_code != 200:
+            return jsonify({'status': 'error', 'message': f'JMeter API status {resp.status_code}'}), resp.status_code
+
+        raw       = resp.text.lstrip('﻿')
+        lines     = [l.replace(',', ';') for l in raw.splitlines()
+                     if l and not l.startswith('sep=')]
+        csv_clean = 'sep=;\n' + '\n'.join(lines)
+
+        return Response(
+            '﻿' + csv_clean,
+            mimetype='text/csv; charset=utf-8-sig',
+            headers={'Content-Disposition': f'attachment; filename={test_id}_requests.csv'}
+        )
+    except http.exceptions.RequestException as e:
+        logger.error(f"Error downloading requests CSV: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@csv_bp.route('/api/test/results/<test_id>/requests/csv/generate', methods=['POST'])
+def generate_requests_csv_proxy(test_id):
+    """Trigger on-demand CSV generation di JMeter API."""
+    try:
+        resp = _jmeter.post(
+            f"{config.JMETER_API_URL}/api/load-test/results/{test_id}/requests-csv/generate",
+            timeout=10
+        )
+        return jsonify(resp.json()), resp.status_code
+    except http.exceptions.RequestException as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@csv_bp.route('/api/test/results/<test_id>/requests/csv/status', methods=['GET'])
+def requests_csv_status_proxy(test_id):
+    """Cek status on-demand CSV generation."""
+    try:
+        resp = _jmeter.get(
+            f"{config.JMETER_API_URL}/api/load-test/results/{test_id}/requests-csv/status",
+            timeout=10
+        )
+        return jsonify(resp.json()), resp.status_code
+    except http.exceptions.RequestException as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500

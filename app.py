@@ -12,6 +12,7 @@ Semua logika endpoint ada di folder routes/ dan helpers/.
 """
 
 import os
+import time
 import logging
 
 from flask import Flask
@@ -41,9 +42,11 @@ logging.basicConfig(
 # ==================== APP ====================
 
 # Nama server ini, dibaca dari environment variable (di-set saat deploy tiap VM)
-BACKEND_SERVER_NAME = os.getenv("BACKEND_SERVER_NAME", "web01")
+BACKEND_SERVER_NAME = os.getenv("BACKEND_SERVER_NAME", config.SERVER_NAME)
 
 app = Flask(__name__)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # disable JS/CSS caching — always serve fresh
+app.jinja_env.globals['app_version'] = int(time.time())  # cache-bust JS/CSS setiap restart
 # Agar IP asli client terbaca saat di belakang reverse proxy (Envoy/Nginx)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
