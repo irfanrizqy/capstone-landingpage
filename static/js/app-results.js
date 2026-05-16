@@ -61,7 +61,7 @@ async function fetchResults(isMulti, attempt = 0) {
             if (currentPhaseIndex < phases.length && isMultiPhaseMode) {
                 updateStatus('running', `⚠️ Fase ${currentPhaseIndex} tidak ada hasil. Memulai Fase ${currentPhaseIndex + 1}...`);
                 await sleep(1000);
-                await runPhase(document.getElementById('targetUrl').value.trim());
+                await runPhase(currentTestParams?.target_url || '');
             } else {
                 updateChartMulti();
                 displayMultiPhaseResults();
@@ -124,7 +124,7 @@ async function fetchResults(isMulti, attempt = 0) {
                 updateChartMulti();
                 updateStatus('running', `✅ Fase ${currentPhaseIndex} selesai. Memulai Fase ${currentPhaseIndex + 1}...`);
                 await sleep(1000);
-                await runPhase(document.getElementById('targetUrl').value.trim());
+                await runPhase(currentTestParams?.target_url || '');
             } else {
                 // Semua fase selesai — tampilkan grafik final + hasil
                 updateChartMulti();
