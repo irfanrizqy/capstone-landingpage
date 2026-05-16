@@ -153,6 +153,7 @@ function initPhases() {
  * Ditolak jika user mode sudah mencapai USER_MAX_PHASES.
  */
 function addPhase() {
+    if (isMultiPhaseMode) return;
     if (!isAdminMode && phases.length >= USER_MAX_PHASES) {
         alert(`User Mode: max ${USER_MAX_PHASES} fase.`); return;
     }
@@ -170,6 +171,7 @@ function addPhase() {
  * @param {number} i - Indeks fase yang akan dihapus (0-based)
  */
 function removePhase(i) {
+    if (isMultiPhaseMode) return;
     if (phases.length <= 1) { alert('Minimal 1 fase.'); return; }
     phases.splice(i, 1);
     renderPhases();
@@ -188,6 +190,7 @@ function removePhase(i) {
  * @param {string} raw   - Nilai mentah dari input (belum diparse ke integer)
  */
 function updatePhase(i, field, raw) {
+    if (isMultiPhaseMode) return;
     if (!phases[i]) return;
     let val = parseInt(raw);
     if (isNaN(val)) return;
@@ -210,8 +213,9 @@ function updatePhase(i, field, raw) {
 function renderPhases() {
     const c   = document.getElementById('phasesContainer');
     c.innerHTML = '';
-    const maxT = isAdminMode ? 10000 : USER_MAX_THREADS;
-    const maxD = isAdminMode ? 3600  : USER_MAX_DURATION;
+    const maxT   = isAdminMode ? 10000 : USER_MAX_THREADS;
+    const maxD   = isAdminMode ? 3600  : USER_MAX_DURATION;
+    const locked = isMultiPhaseMode;
 
     phases.forEach((p, i) => {
         const info = detectTestType(p.threads || 0, p.rampTime ?? 0, p.duration || 0);
@@ -219,29 +223,32 @@ function renderPhases() {
         div.className = 'phase-panel';
         div.innerHTML = `
             <div class="phase-number">Fase ${i+1} <span style="font-size:0.72rem;font-weight:500;padding:2px 8px;border-radius:20px;background:${info.bg};color:${info.color};margin-left:6px;">${info.icon} ${info.type}</span></div>
-            ${i > 0 ? `<button class="btn-remove-phase" onclick="removePhase(${i})">✕ Hapus</button>` : ''}
+            ${i > 0 && !locked ? `<button class="btn-remove-phase" onclick="removePhase(${i})">✕ Hapus</button>` : ''}
             <div class="row g-2">
                 <div class="col-md-4">
                     <label class="form-label" style="font-size:.82rem;">Users (max ${maxT}): <span class="tip" data-tip="Jumlah user virtual yang mengirim&#10;request secara bersamaan ke server.&#10;Makin banyak = makin besar beban.">?</span></label>
                     <input type="number" class="form-control form-control-sm"
-                           min="1" max="${maxT}" value="${p.threads}"
+                           min="1" max="${maxT}" value="${p.threads}" ${locked ? 'disabled' : ''}
                            onchange="updatePhase(${i},'threads',this.value)">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" style="font-size:.82rem;">Ramp-up (s): <span class="tip" data-tip="Waktu (detik) untuk menambah semua user&#10;secara bertahap. Isi 0 untuk langsung&#10;semua user aktif sekaligus.">?</span></label>
                     <input type="number" class="form-control form-control-sm"
-                           min="0" max="600" value="${p.rampTime}"
+                           min="0" max="600" value="${p.rampTime}" ${locked ? 'disabled' : ''}
                            onchange="updatePhase(${i},'rampTime',this.value)">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" style="font-size:.82rem;">Durasi (s, max ${maxD}): <span class="tip" data-tip="Lama waktu (detik) load test berjalan&#10;setelah semua user aktif.&#10;Tidak termasuk ramp-up time.">?</span></label>
                     <input type="number" class="form-control form-control-sm"
-                           min="1" max="${maxD}" value="${p.duration}"
+                           min="1" max="${maxD}" value="${p.duration}" ${locked ? 'disabled' : ''}
                            onchange="updatePhase(${i},'duration',this.value)">
                 </div>
             </div>`;
         c.appendChild(div);
     });
+
+    const addBtn = document.getElementById('addPhaseBtn');
+    if (addBtn) addBtn.disabled = locked;
 
     const lim = document.getElementById('phaseLimit');
     if (lim) lim.textContent = isAdminMode
@@ -320,6 +327,7 @@ async function handleStartMultiPhase() {
     allPhasesSummaries    = [];
     currentTestParams     = { target_url: targetUrl };
     resetChart();
+    renderPhases();  // Kunci input/tombol hapus selama test berjalan
     document.getElementById('resultsContent').style.display = 'none';
 
     await runPhase(targetUrl);
@@ -337,6 +345,10 @@ async function handleStartMultiPhase() {
  */
 async function runPhase(targetUrl) {
     if (currentPhaseIndex >= phases.length) { finishMultiPhase(); return; }
+
+    // Kosongkan currentTestId selama transisi agar handleStopTest tidak mencoba
+    // menghentikan fase yang sudah selesai di periode jeda antar fase.
+    currentTestId = null;
 
     const p   = phases[currentPhaseIndex];
     const num = currentPhaseIndex + 1;
@@ -372,11 +384,11 @@ async function runPhase(targetUrl) {
             onTestStarted(true);
         } else {
             updateStatus('error', `Fase ${num} gagal: ${data.message}`);
-            resetMultiUI(); isMultiPhaseMode = false;
+            isMultiPhaseMode = false; resetMultiUI(); renderPhases();
         }
     } catch(err) {
         updateStatus('error', 'Error: ' + err.message);
-        resetMultiUI(); isMultiPhaseMode = false;
+        isMultiPhaseMode = false; resetMultiUI(); renderPhases();
     }
 }
 
@@ -390,10 +402,28 @@ function finishMultiPhase() {
     isMultiPhaseMode = false;
     stopPolling();
     resetMultiUI();
+    renderPhases();  // Buka kunci input/tombol hapus kembali
     showProgress(false);
     document.getElementById('phaseProgressLabel').textContent = '';
     updateStatus('completed', `✅ Semua ${phases.length} fase selesai.`);
     setBadge('Completed', 'success');
+
+    // Simpan sesi ke server (JMeter API disk) agar terlihat oleh semua pengguna
+    if (allPhaseTestIds.length > 1) {
+        fetch('/api/test/sessions', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                id:           'mp_' + Date.now(),
+                test_ids:     [...allPhaseTestIds],
+                phase_count:  allPhaseTestIds.length,
+                target_url:   phases[0]?.target_url || '',
+                completed_at: new Date().toISOString(),
+            }),
+        })
+        .then(() => { if (typeof loadMultiPhaseHistory === 'function') loadMultiPhaseHistory(); })
+        .catch(e  => console.warn('Gagal simpan sesi multi-phase:', e));
+    }
 }
 
 /**
@@ -429,17 +459,35 @@ async function handleStopTest() {
         updateStatus('stopped', 'Antrian dibatalkan.');
         setBadge('Cancelled', 'secondary');
         resetMultiUI();
+        renderPhases();
         const btn = document.getElementById('startTestBtn');
         if (btn) { btn.disabled = false; btn.innerHTML = '🚀 START LOAD TEST'; }
         return;
     }
-    if (!currentTestId) return;
+    // Tidak ada test aktif — tapi jika multi-phase sedang dalam transisi antar fase,
+    // cukup batalkan sesi tanpa perlu mengirim stop ke API.
+    if (!currentTestId) {
+        if (isMultiPhaseMode) {
+            if (!confirm('Yakin ingin menghentikan multi-phase test?')) return;
+            isMultiPhaseMode = false;
+            resetMultiUI();
+            renderPhases();
+            showProgress(false);
+            updateStatus('stopped', 'Multi-phase test dihentikan.');
+            setBadge('Stopped', 'secondary');
+        }
+        return;
+    }
     if (!confirm('Yakin ingin menghentikan test?')) return;
     isMultiPhaseMode = false;
     try {
         const resp = await fetch(`/api/test/stop/${currentTestId}`, { method: 'POST' });
         const data = await resp.json();
-        if (data.status === 'success') { updateStatus('stopped', 'Test dihentikan.'); stopPolling(); }
+        if (data.status === 'success') {
+            updateStatus('stopped', 'Test dihentikan.');
+            stopPolling();
+            renderPhases();
+        }
     } catch(err) { alert('Error stop: ' + err.message); }
 }
 

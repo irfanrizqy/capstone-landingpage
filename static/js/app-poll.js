@@ -30,10 +30,14 @@ function startPolling(isMulti) {
 function stopPolling() {
     if (testPollingInterval) { clearInterval(testPollingInterval); testPollingInterval = null; }
     stopProgressAnimation();
-    const b = document.getElementById('startTestBtn');
-    const s = document.getElementById('stopTestBtn');
-    if (b) { b.disabled = false; b.innerHTML = '🚀 START LOAD TEST'; }
-    if (s) s.disabled = true;
+    // Jangan reset tombol single-test saat sedang di tengah multi-phase (antar fase);
+    // biarkan finishMultiPhase() / error path yang mereset setelah isMultiPhaseMode = false.
+    if (!isMultiPhaseMode) {
+        const b = document.getElementById('startTestBtn');
+        const s = document.getElementById('stopTestBtn');
+        if (b) { b.disabled = false; b.innerHTML = '🚀 START LOAD TEST'; }
+        if (s) s.disabled = true;
+    }
 }
 
 /**
@@ -78,13 +82,13 @@ async function pollStatus(isMulti) {
             } else if (s === 'failed') {
                 updateStatus('error', '❌ Test gagal. Memeriksa penyebab...');
                 setBadge('Failed', 'danger');
-                if (isMulti) { isMultiPhaseMode = false; resetMultiUI(); }
+                if (isMulti) { isMultiPhaseMode = false; resetMultiUI(); renderPhases(); }
                 // Cek apakah disk penuh sebagai kemungkinan penyebab kegagalan
                 await checkDiskOnFailure();
             } else {
                 updateStatus('stopped', 'Test dihentikan.');
                 setBadge('Stopped', 'secondary');
-                if (isMulti) { isMultiPhaseMode = false; resetMultiUI(); }
+                if (isMulti) { isMultiPhaseMode = false; resetMultiUI(); renderPhases(); }
             }
         }
     } catch(err) { console.error('Poll error:', err); }

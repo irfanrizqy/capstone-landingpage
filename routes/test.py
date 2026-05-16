@@ -391,3 +391,43 @@ def list_load_tests():
     except http.exceptions.RequestException as e:
         logger.error(f"Error listing tests: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@test_bp.route('/api/test/sessions', methods=['GET'])
+def get_sessions():
+    """Ambil daftar sesi multi-phase dari JMeter API (tersimpan di disk server)."""
+    try:
+        resp = _jmeter.get(f"{config.JMETER_API_URL}/api/load-test/sessions", timeout=5)
+        return jsonify(resp.json()), resp.status_code
+    except http.exceptions.RequestException as e:
+        logger.error(f"Error getting sessions: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@test_bp.route('/api/test/sessions', methods=['POST'])
+def save_session():
+    """Simpan sesi multi-phase baru ke JMeter API."""
+    try:
+        resp = _jmeter.post(
+            f"{config.JMETER_API_URL}/api/load-test/sessions",
+            json=request.get_json(silent=True) or {},
+            timeout=10
+        )
+        return jsonify(resp.json()), resp.status_code
+    except http.exceptions.RequestException as e:
+        logger.error(f"Error saving session: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@test_bp.route('/api/test/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """Hapus sesi multi-phase dari JMeter API."""
+    try:
+        resp = _jmeter.delete(
+            f"{config.JMETER_API_URL}/api/load-test/sessions/{session_id}",
+            timeout=10
+        )
+        return jsonify(resp.json()), resp.status_code
+    except http.exceptions.RequestException as e:
+        logger.error(f"Error deleting session: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500

@@ -21,6 +21,7 @@ function initHistory() {
     if (btn) btn.addEventListener('click', loadHistory);
 
     loadHistory();
+    loadMultiPhaseHistory();
     _historyRefreshTimer = setInterval(loadHistory, 30000);
 }
 
@@ -39,7 +40,21 @@ async function loadHistory() {
             tests = await _fetchTestList();
         }
 
-        _renderHistoryTable(tests);
+        // Ambil session info agar tabel single bisa tandai test multi-phase
+        let sessionMap = {};
+        try {
+            const sResp = await fetch('/api/test/sessions');
+            if (sResp.ok) {
+                const sData = await sResp.json();
+                (sData.sessions || []).forEach(s => {
+                    s.test_ids.forEach((tid, i) => {
+                        sessionMap[tid] = { session_id: s.id, phase: i + 1, total: s.phase_count, ids: s.test_ids };
+                    });
+                });
+            }
+        } catch {}
+
+        _renderHistoryTable(tests, sessionMap);
 
         if (statusEl) {
             const now = new Date().toLocaleTimeString('id-ID');
@@ -66,7 +81,7 @@ async function _fetchTestList() {
     }
 }
 
-function _renderHistoryTable(tests) {
+function _renderHistoryTable(tests, sessionMap = {}) {
     const tbody = document.getElementById('historyTableBody');
     if (!tbody) return;
 
@@ -81,6 +96,15 @@ function _renderHistoryTable(tests) {
         const bt = b.start_time || b.created_time || '';
         return bt.localeCompare(at);
     });
+
+    // Pre-hitung fase pertama tiap sesi (test_id dengan phase paling kecil)
+    // agar tombol Download Merged muncul di baris fase_1, bukan fase terakhir
+    const sessionFirstId = {};
+    Object.entries(sessionMap).forEach(([tid, s]) => {
+        const cur = sessionFirstId[s.session_id];
+        if (!cur || s.phase < sessionMap[cur].phase) sessionFirstId[s.session_id] = tid;
+    });
+    const shownSessions = new Set();
 
     tbody.innerHTML = sorted.map(t => {
         const statusBadge = {
@@ -99,8 +123,30 @@ function _renderHistoryTable(tests) {
         const avgRT   = t.summary?.response_time_avg != null ? t.summary.response_time_avg.toFixed(1) + ' ms' : '--';
         const errRate = t.summary?.error_rate != null ? t.summary.error_rate.toFixed(2) + '%' : '--';
 
+        // Badge multi-phase jika test ini bagian dari sesi
+        const sess = sessionMap[t.test_id];
+        const phaseBadge = sess
+            ? `<span class="badge bg-info text-dark ms-1" style="font-size:0.65rem">Fase ${sess.phase}/${sess.total}</span>`
+            : '';
+
+        // Tombol download merged — tampilkan hanya pada baris fase_1 dari sesi
+        let mergedBtn = '';
+        if (sess && !shownSessions.has(sess.session_id) && sessionFirstId[sess.session_id] === t.test_id) {
+            shownSessions.add(sess.session_id);
+            const idsParam = sess.ids.join(',');
+            mergedBtn = `
+                <button class="btn btn-sm btn-outline-success py-0 px-1 ms-1"
+                        style="font-size:0.72rem"
+                        title="Download Summary CSV gabungan ${sess.total} fase"
+                        onclick="_dlMultiSummary('${idsParam}', this)">📊</button>
+                <button class="btn btn-sm btn-outline-warning py-0 px-1 ms-1"
+                        style="font-size:0.72rem"
+                        title="Download Requests CSV gabungan ${sess.total} fase"
+                        onclick="_dlMultiRequests('${idsParam}', this)">📄</button>`;
+        }
+
         return `<tr>
-            <td><code style="font-size:0.72rem">${t.test_id}</code></td>
+            <td><code style="font-size:0.72rem">${t.test_id}</code>${phaseBadge}</td>
             <td title="${target}" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${shortT}</td>
             <td>${statusBadge}</td>
             <td>${threads}</td>
@@ -108,10 +154,10 @@ function _renderHistoryTable(tests) {
             <td style="white-space:nowrap">${waktu}</td>
             <td>${avgRT}</td>
             <td>${errRate}</td>
-            <td>
+            <td style="white-space:nowrap">
                 <button class="btn btn-sm btn-outline-primary py-0 px-2"
                         style="font-size:0.78rem"
-                        onclick="showHistoryDetail('${t.test_id}')">Detail</button>
+                        onclick="showHistoryDetail('${t.test_id}')">Detail</button>${mergedBtn}
             </td>
         </tr>`;
     }).join('');
@@ -543,5 +589,161 @@ async function _handleModalRequestsCsv(testId, btn) {
         btn.innerHTML = orig;
         btn.disabled = false;
         _hideModalDownloadProgress();
+    }
+}
+
+// ==================== MULTI-PHASE HISTORY ====================
+
+async function loadMultiPhaseHistory() {
+    try {
+        const resp = await fetch('/api/test/sessions');
+        if (!resp.ok) throw new Error('Server error');
+        const data = await resp.json();
+        const sessions = data.sessions || [];
+        _renderMultiHistoryTable(sessions);
+        const countEl = document.getElementById('multiHistoryCount');
+        if (countEl) countEl.textContent = sessions.length ? `${sessions.length} sesi tersimpan` : '';
+    } catch(e) {
+        const tbody = document.getElementById('multiHistoryTableBody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-2">Gagal memuat riwayat multi-phase.</td></tr>';
+    }
+}
+
+function _renderMultiHistoryTable(sessions) {
+    const tbody = document.getElementById('multiHistoryTableBody');
+    if (!tbody) return;
+
+    if (!sessions.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-2">Belum ada riwayat multi-phase.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = sessions.map((s, idx) => {
+        const waktu   = _fmtDateTime(s.completed_at);
+        const target  = s.target_url || '--';
+        const shortT  = target.length > 36 ? target.substring(0, 36) + '…' : target;
+        const idsAttr = s.test_ids.join(',');
+        return `<tr>
+            <td><span class="badge bg-info text-dark">${s.phase_count} fase</span></td>
+            <td title="${target}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${shortT}</td>
+            <td style="white-space:nowrap;font-size:0.8rem">${waktu}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-success py-0 px-2" style="font-size:0.78rem"
+                        onclick="_dlMultiSummary('${idsAttr}', this)">📊 Summary</button>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-warning py-0 px-2" style="font-size:0.78rem"
+                        onclick="_dlMultiRequests('${idsAttr}', this)">📄 Requests</button>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:0.78rem"
+                        onclick="_deleteMultiSession('${s.id}')" title="Hapus dari riwayat">✕</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function _deleteMultiSession(sessionId) {
+    try {
+        await fetch(`/api/test/sessions/${sessionId}`, { method: 'DELETE' });
+    } catch(e) {
+        console.warn('Gagal hapus sesi:', e);
+    }
+    loadMultiPhaseHistory();
+}
+
+async function _dlMultiSummary(idsParam, btn) {
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    try {
+        // Gunakan prepare→download agar nama file aktual dari server digunakan
+        const prepResp = await fetch(`/api/test/results/summary/csv/merge-prepare?ids=${idsParam}`);
+        if (!prepResp.ok) {
+            let errMsg = `Server error ${prepResp.status}`;
+            try { const j = await prepResp.json(); errMsg = j.message || errMsg; } catch {}
+            throw new Error(errMsg);
+        }
+        const prepData = await prepResp.json();
+        if (prepData.status === 'error') throw new Error(prepData.message);
+
+        const dlResp = await fetch(`/api/test/results/merged/${encodeURIComponent(prepData.filename)}`);
+        const dlCt   = dlResp.headers.get('content-type') || '';
+        if (!dlResp.ok || (!dlCt.includes('csv') && !dlCt.includes('octet-stream'))) {
+            let errMsg = `Server error ${dlResp.status}`;
+            try { const j = await dlResp.json(); errMsg = j.message || errMsg; } catch {}
+            throw new Error(errMsg);
+        }
+        triggerDownload(await dlResp.blob(), prepData.filename);
+        btn.innerHTML = '✅';
+        setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1500);
+    } catch(e) {
+        alert('Download gagal: ' + e.message);
+        btn.innerHTML = orig; btn.disabled = false;
+    }
+}
+
+async function _dlMultiRequests(idsParam, btn) {
+    const ids  = idsParam.split(',');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+
+    try {
+        // 1. Generate + poll tiap fase
+        for (let i = 0; i < ids.length; i++) {
+            const testId = ids[i];
+            const lbl    = `(${i + 1}/${ids.length})`;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${lbl}`;
+
+            const genResp = await fetch(`/api/test/results/${testId}/requests/csv/generate`, { method: 'POST' });
+            if (!genResp.ok) throw new Error(`Gagal generate fase ${i + 1}`);
+            const genData = await genResp.json();
+            if (genData.status === 'error') throw new Error(genData.message);
+
+            let elapsed = 0;
+            while (true) {
+                await sleep(2000); elapsed += 2;
+                const stResp = await fetch(`/api/test/results/${testId}/requests/csv/status`);
+                if (!stResp.ok) continue;
+                const stData = await stResp.json();
+                if (stData.status === 'ready') break;
+                if (stData.status === 'error') throw new Error(`Error generate fase ${i + 1}`);
+                btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${elapsed}s ${lbl}`;
+            }
+        }
+
+        // 2. Merge ke disk — dapat path & ukuran aktual
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Merge...';
+        const prepResp = await fetch(`/api/test/results/requests/csv/merge-prepare?ids=${idsParam}`);
+        if (!prepResp.ok) {
+            let errMsg = `Server error ${prepResp.status}`;
+            try { const j = await prepResp.json(); errMsg = j.message || errMsg; } catch {}
+            throw new Error(errMsg);
+        }
+        const prepData = await prepResp.json();
+        if (prepData.status === 'error') throw new Error(prepData.message);
+
+        // 3. Dialog file besar (pakai overlay yang sama dengan halaman utama)
+        if (prepData.size_mb > LARGE_FILE_WARNING_MB) {
+            const proceed = await confirmLargeRequestCsv(prepData.size_mb, prepData.path);
+            if (!proceed) { btn.innerHTML = orig; btn.disabled = false; return; }
+        }
+
+        // 4. Download file yang sudah ada di server
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Unduh...';
+        const dlResp = await fetch(`/api/test/results/merged/${encodeURIComponent(prepData.filename)}`);
+        const dlCt   = dlResp.headers.get('content-type') || '';
+        if (!dlResp.ok || (!dlCt.includes('csv') && !dlCt.includes('octet-stream'))) {
+            let errMsg = `Server error ${dlResp.status}`;
+            try { const j = await dlResp.json(); errMsg = j.message || errMsg; } catch {}
+            throw new Error(errMsg);
+        }
+        triggerDownload(await dlResp.blob(), prepData.filename);
+        btn.innerHTML = '✅';
+        setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1500);
+
+    } catch(e) {
+        alert('Download gagal: ' + e.message);
+        btn.innerHTML = orig; btn.disabled = false;
     }
 }

@@ -71,131 +71,49 @@ async function downloadCsv(type, btn) {
     const ids = allPhaseTestIds.length > 0 ? allPhaseTestIds : (currentTestId ? [currentTestId] : []);
     if (!ids.length) { alert('Belum ada test selesai.'); return; }
 
-    const ep   = type === 'summary' ? 'summary/csv' : 'requests/csv';
     const orig = btn.innerHTML;
     btn.disabled  = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Mengunduh...';
 
     try {
         if (ids.length === 1) {
-            // Single test — download langsung dari server (sudah ada sep=; dan BOM)
+            // Single test — download langsung dari server
+            const ep   = type === 'summary' ? 'summary/csv' : 'requests/csv';
             const resp = await fetch(`/api/test/results/${ids[0]}/${ep}`);
             if (!resp.ok) throw new Error('Server error ' + resp.status);
             triggerDownload(await resp.blob(), `${ids[0]}_${type}.csv`);
-            btn.innerHTML = '✅ Berhasil';
+
         } else {
-            // Multi-phase — fetch tiap fase, merge jadi 1 CSV, tambah baris TOTAL
-            let header = null;
-            const rows = [];
-            const phaseSummaries = []; // data per-fase untuk perhitungan baris TOTAL
+            // Multi-phase — delegate ke server agar file tersimpan di JMeter API disk.
+            const idsParam = ids.join(',');
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Server menggabungkan ${ids.length} fase...`;
 
-            for (let i = 0; i < ids.length; i++) {
-                btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Fase ${i+1}/${ids.length}...`;
-                const resp = await fetch(`/api/test/results/${ids[i]}/${ep}`);
-                if (!resp.ok) { console.warn(`Fase ${i+1} skip`); continue; }
+            // Gunakan prepare→download agar nama file aktual dari server digunakan
+            // (nama deterministik berbasis hash IDs, bukan hardcode tanpa hash)
+            const prepEp = type === 'summary'
+                ? `/api/test/results/summary/csv/merge-prepare?ids=${idsParam}`
+                : `/api/test/results/requests/csv/merge-prepare?ids=${idsParam}`;
 
-                let text = await resp.text();
-                // Bersihkan BOM ganda yang kadang muncul dari server
-                text = text.replace(/^﻿/, '').replace(/^﻿/, '');
-                const lines = text.split('\n')
-                    .map(l => l.trim())
-                    .filter(l => l && !l.startsWith('sep='));
-                if (lines.length < 2) continue;
-
-                if (!header) header = `phase;${lines[0]}`;
-                lines.slice(1).forEach(row => rows.push(`fase_${i+1};${row}`));
-
-                // Ekstrak statistik dari baris data pertama (nilai summary sama di semua baris)
-                if (type === 'summary') {
-                    const c = lines[1].split(';');
-                    const rtMin = parseFloat(c[19]);
-                    phaseSummaries.push({
-                        test_id:          c[0]  || '',
-                        target_url:       c[2]  || '',
-                        http_path:        c[6]  || '',
-                        duration_seconds: parseInt(c[5])    || 0,
-                        total_requests:   parseInt(c[10])   || 0,
-                        success_requests: parseInt(c[11])   || 0,
-                        error_requests:   parseInt(c[12])   || 0,
-                        throughput:       parseFloat(c[15]) || 0,
-                        bw_received:      parseFloat(c[16]) || 0,
-                        bw_sent:          parseFloat(c[17]) || 0,
-                        rt_avg:           parseFloat(c[18]) || 0,
-                        rt_min:           (rtMin > 0) ? rtMin : Infinity,
-                        rt_max:           parseFloat(c[20]) || 0,
-                        start_time:       c[24] || '',
-                        end_time:         c[25] || '',
-                    });
-                }
+            const prepResp = await fetch(prepEp);
+            if (!prepResp.ok) {
+                let errMsg = `Server error ${prepResp.status}`;
+                try { const j = await prepResp.json(); errMsg = j.message || errMsg; } catch {}
+                throw new Error(errMsg);
             }
+            const prepData = await prepResp.json();
+            if (prepData.status === 'error') throw new Error(prepData.message);
 
-            if (!header) { alert('Tidak ada data CSV.'); btn.innerHTML = orig; btn.disabled = false; return; }
-
-            // Hitung dan tambah baris TOTAL di akhir CSV summary
-            if (type === 'summary' && phaseSummaries.length > 1) {
-                const totalReq  = phaseSummaries.reduce((s, p) => s + p.total_requests,   0);
-                const totalSuc  = phaseSummaries.reduce((s, p) => s + p.success_requests, 0);
-                const totalErr  = phaseSummaries.reduce((s, p) => s + p.error_requests,   0);
-                const totalDur  = phaseSummaries.reduce((s, p) => s + p.duration_seconds, 0);
-                const errPct    = totalReq > 0 ? (totalErr / totalReq * 100).toFixed(2) : '0.00';
-                const sucPct    = totalReq > 0 ? (totalSuc / totalReq * 100).toFixed(2) : '100.00';
-
-                // Throughput keseluruhan = total request dibagi total durasi konfigurasi
-                const throughput = totalDur > 0 ? (totalReq / totalDur).toFixed(2) : '0.00';
-
-                // Bandwidth & RT avg: rata-rata tertimbang berdasarkan jumlah request tiap fase
-                const bwRecv = totalReq > 0
-                    ? (phaseSummaries.reduce((s,p) => s + p.bw_received * p.total_requests, 0) / totalReq).toFixed(2)
-                    : '0.00';
-                const bwSent = totalReq > 0
-                    ? (phaseSummaries.reduce((s,p) => s + p.bw_sent * p.total_requests, 0) / totalReq).toFixed(2)
-                    : '0.00';
-                const rtAvg = totalReq > 0
-                    ? (phaseSummaries.reduce((s,p) => s + p.rt_avg * p.total_requests, 0) / totalReq).toFixed(2)
-                    : '0.00';
-
-                const rtMin = Math.min(...phaseSummaries.map(p => p.rt_min).filter(v => isFinite(v)));
-                const rtMax = Math.max(...phaseSummaries.map(p => p.rt_max));
-
-                const totalRow = [
-                    'TOTAL',
-                    phaseSummaries.map(p => p.test_id).join(' + '),
-                    'completed',
-                    phaseSummaries[0].target_url,
-                    '-',       // num_threads — berbeda tiap fase
-                    '-',       // ramp_time
-                    totalDur,
-                    phaseSummaries[0].http_path,
-                    '-',       // timestamp_seconds (data per-detik, tidak berlaku untuk total)
-                    '-',       // timeline_response_time_ms
-                    '-',       // timeline_throughput_rps
-                    totalReq,
-                    totalSuc,
-                    totalErr,
-                    errPct,
-                    sucPct,
-                    throughput,
-                    bwRecv,
-                    bwSent,
-                    rtAvg,
-                    isFinite(rtMin) ? rtMin : '-',
-                    rtMax,
-                    '-',       // rt_median — tidak bisa digabung tanpa data raw
-                    '-',       // rt_90th
-                    '-',       // rt_95th
-                    phaseSummaries[0].start_time,
-                    phaseSummaries[phaseSummaries.length - 1].end_time,
-                ].join(';');
-
-                rows.push(''); // baris kosong sebagai pemisah visual sebelum TOTAL
-                rows.push(totalRow);
+            const dlResp = await fetch(`/api/test/results/merged/${encodeURIComponent(prepData.filename)}`);
+            const dlCt   = dlResp.headers.get('content-type') || '';
+            if (!dlResp.ok || (!dlCt.includes('csv') && !dlCt.includes('octet-stream'))) {
+                let errMsg = `Server error ${dlResp.status}`;
+                try { const j = await dlResp.json(); errMsg = j.message || errMsg; } catch {}
+                throw new Error(errMsg);
             }
-
-            const csv  = `sep=;\n${header}\n${rows.join('\n')}`;
-            const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-            triggerDownload(blob, `multiphase_${ids[0]}_${type}.csv`);
-            btn.innerHTML = '✅ Berhasil';
+            triggerDownload(await dlResp.blob(), prepData.filename);
         }
+
+        btn.innerHTML = '✅ Berhasil';
         setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1200);
     } catch(e) {
         alert('Download gagal: ' + e.message);
@@ -324,9 +242,8 @@ async function downloadRequestsCsvOnDemand(btn) {
 
         } else {
             // Multi-phase — generate+poll semua fase dulu, lalu merge di server
-            let totalSizeMb = 0;
             for (let i = 0; i < ids.length; i++) {
-                const testId = ids[i];
+                const testId     = ids[i];
                 const phaseLabel = ` (fase ${i+1}/${ids.length})`;
 
                 // 1. Generate
@@ -344,24 +261,28 @@ async function downloadRequestsCsvOnDemand(btn) {
                     const stResp = await fetch(`/api/test/results/${testId}/requests/csv/status`);
                     if (!stResp.ok) continue;
                     const stData = await stResp.json();
-                    if (stData.status === 'ready') {
-                        totalSizeMb += stData.size_mb || 0;
-                        break;
-                    }
+                    if (stData.status === 'ready') break;
                     if (stData.status === 'error') throw new Error(`Server error saat generate CSV${phaseLabel}`);
                     setMsg(`Memproses log request${phaseLabel}... (${elapsed}s — biasanya 1–2 menit)`);
                 }
             }
 
-            // Semua fase siap — cek total ukuran sebelum download
-            if (totalSizeMb > LARGE_FILE_WARNING_MB) {
+            // 3. Minta server merge & simpan ke disk — dapat path & ukuran file aktual
+            setMsg(`Menggabungkan ${ids.length} fase di server...`);
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Menggabungkan ${ids.length} fase...`;
+            const prepResp = await fetch(`/api/test/results/requests/csv/merge-prepare?ids=${ids.join(',')}`);
+            if (!prepResp.ok) {
+                let errMsg = `Server error ${prepResp.status}`;
+                try { const j = await prepResp.json(); errMsg = j.message || errMsg; } catch {}
+                throw new Error(errMsg);
+            }
+            const prepData = await prepResp.json();
+            if (prepData.status === 'error') throw new Error(prepData.message);
+
+            // 4. Jika file besar, tampilkan dialog dengan path server aktual
+            if (prepData.size_mb > LARGE_FILE_WARNING_MB) {
                 setMsg('');
-
-                const proceed = await confirmLargeRequestCsv(
-                    totalSizeMb,
-                    null
-                );
-
+                const proceed = await confirmLargeRequestCsv(prepData.size_mb, prepData.path);
                 if (!proceed) {
                     btn.innerHTML = orig;
                     btn.disabled = false;
@@ -370,15 +291,16 @@ async function downloadRequestsCsvOnDemand(btn) {
                 }
             }
 
+            // 5. Download file yang sudah tersimpan di server
             setMsg('Mengunduh CSV gabungan...');
-            const dlResp = await fetch(`/api/test/results/requests/csv/multi?ids=${ids.join(',')}`);
-            const dlCt = dlResp.headers.get('content-type') || '';
-            if (!dlResp.ok || !dlCt.includes('csv')) {
+            const dlResp = await fetch(`/api/test/results/merged/${encodeURIComponent(prepData.filename)}`);
+            const dlCt   = dlResp.headers.get('content-type') || '';
+            if (!dlResp.ok || (!dlCt.includes('csv') && !dlCt.includes('octet-stream'))) {
                 let errMsg = `Server error ${dlResp.status}`;
                 try { const j = await dlResp.json(); errMsg = j.message || errMsg; } catch {}
                 throw new Error(errMsg);
             }
-            triggerDownload(await dlResp.blob(), `multiphase_${ids[0]}_requests.csv`);
+            triggerDownload(await dlResp.blob(), prepData.filename);
         }
 
         btn.innerHTML = '✅ Berhasil';
