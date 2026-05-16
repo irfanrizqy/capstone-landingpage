@@ -28,21 +28,21 @@ Untuk menghapus VM: hapus entri yang ditandai "# HAPUS JIKA TIDAK PERLU"
 # ==================== IDENTITAS SERVER ====================
 # !! GANTI BAGIAN INI SESUAI VM YANG SEDANG DIKONFIGURASI !!
 
-SERVER_NAME     = "Web Server 1 (DEV)"       # Nama tampil di dashboard
-SERVER_IP       = "192.168.100.xx"     # IP VM ini
-SERVER_HOSTNAME = "hostname-vm"           # Hostname VM ini
+SERVER_NAME     = "Web Server X"       # Nama tampil di dashboard
+SERVER_IP       = "192.168.100.X"               # IP VM ini
+SERVER_HOSTNAME = "cd-web-X"           # Hostname VM ini
 
 # ==================== LAYANAN EKSTERNAL ====================
 # Sama untuk semua VM — tidak perlu diubah
 
 # JMeter API Server (VM terpisah tempat load test dijalankan)
-JMETER_API_URL = "http://JMETER_API_IP:8080"
+JMETER_API_URL = "http://jmeter-api-IP:8080"
 
 # Node Exporter — selalu localhost karena berjalan di VM yang sama
 NODE_EXPORTER_URL = "http://localhost:9100"
 
 # Prometheus Server — untuk data historis (opsional)
-PROMETHEUS_URL = "http://PROMETHEUS_IP:9090"
+PROMETHEUS_URL = "http://prometheus-IP:9090"
 
 # ==================== DAFTAR SEMUA BACKEND VM ====================
 # Dipakai oleh /api/metrics/all untuk polling metrik semua VM sekaligus.
@@ -52,7 +52,6 @@ _BACKEND_VMS = [
     {"name": "Web Server 1", "ip": "192.168.100.40", "hostname": "cd-web-1"},
     {"name": "Web Server 2", "ip": "192.168.100.45", "hostname": "cd-web-2"},
     {"name": "Web Server 3", "ip": "192.168.100.50", "hostname": "cd-web-3"},
-    {"name": "Staging",      "ip": "192.168.100.60", "hostname": "cd-staging"},  # HAPUS JIKA TIDAK PERLU
 ]
 
 ALL_SERVERS = [
@@ -90,12 +89,6 @@ TARGET_PRESETS = {
         "url":  "http://192.168.100.50",
         "icon": "🖥️"
     },
-    # HAPUS JIKA TIDAK PERLU — staging server sementara
-    "staging_server": {
-        "name": "Staging Server",
-        "url":  "http://192.168.100.60",
-        "icon": "🧪"
-    },
     "this_server": {
         "name": f"This Server ({SERVER_NAME})",
         "url":  f"http://{SERVER_IP}",
@@ -107,7 +100,7 @@ DEFAULT_TARGET_URL = "http://192.168.100.30"  # URL default saat dashboard dibuk
 
 # ==================== PARAMETER LOAD TEST DEFAULT ====================
 
-DEFAULT_NUM_THREADS = 50
+DEFAULT_NUM_THREADS = 5
 DEFAULT_RAMP_TIME   = 10
 DEFAULT_DURATION    = 60
 DEFAULT_HTTP_PATH   = "/"
@@ -116,8 +109,9 @@ DEFAULT_HTTP_PATH   = "/"
 # Batasan untuk pengguna biasa (bukan admin).
 # Admin bisa melampaui semua batas ini setelah login dengan ADMIN_PASSWORD.
 
-ADMIN_PASSWORD        = "CHANGE_ME"  # Password untuk aktifkan Admin Mode di dashboard
-USER_MAX_THREADS      = 100           # Maks users (threads) untuk user biasa
+ADMIN_PASSWORD        = "changeme"  # Password untuk aktifkan Admin Mode di dashboard
+LARGE_FILE_WARNING_MB = 100         # Batas ukuran CSV (MB) sebelum muncul dialog peringatan file besar
+USER_MAX_THREADS      = 50           # Maks users (threads) untuk user biasa
 USER_MAX_DURATION     = 60          # Maks durasi (detik) untuk user biasa
 USER_MAX_PHASES       = 3           # Maks fase untuk user biasa di Multi-Phase test
 MAX_CONCURRENT_TESTS  = 5           # Maks test yang boleh berjalan bersamaan; lebih dari ini masuk antrian

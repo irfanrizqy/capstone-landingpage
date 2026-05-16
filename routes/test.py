@@ -64,12 +64,20 @@ def _queue_worker():
     while True:
         time.sleep(3)
         with _queue_lock:
-            # Bersihkan entri yang sudah kadaluarsa
             now = time.time()
+            # Bersihkan pending yang sudah kadaluarsa
             _pending[:] = [
                 item for item in _pending
                 if now - item['added_at'] < config.QUEUE_TTL_S
             ]
+            # Bersihkan hasil yang sudah final dan lebih dari 30 menit — cegah memory leak
+            stale_keys = [
+                k for k, v in _queue_results.items()
+                if v.get('status') != 'queued' and now - v.get('_ts', now) > 1800
+            ]
+            for k in stale_keys:
+                del _queue_results[k]
+
             if not _pending:
                 continue
             next_item = _pending[0]
@@ -93,18 +101,20 @@ def _queue_worker():
                 with _queue_lock:
                     _queue_results[item['queue_id']] = {
                         'status':  'started',
-                        'test_id': data['test_id']
+                        'test_id': data['test_id'],
+                        '_ts':     time.time(),
                     }
             else:
                 with _queue_lock:
                     _queue_results[item['queue_id']] = {
                         'status':  'error',
-                        'message': data.get('message', 'Gagal memulai test dari antrian')
+                        'message': data.get('message', 'Gagal memulai test dari antrian'),
+                        '_ts':     time.time(),
                     }
         except Exception as e:
             with _queue_lock:
                 _queue_results[item['queue_id']] = {
-                    'status': 'error', 'message': str(e)
+                    'status': 'error', 'message': str(e), '_ts': time.time()
                 }
         logger.info(f"Queue worker: processed {item['queue_id']}, result: {_queue_results.get(item['queue_id'], {}).get('status')}")
 
@@ -294,7 +304,11 @@ def get_test_status(test_id):
     try:
         resp = _jmeter.get(f"{config.JMETER_API_URL}/api/load-test/status/{test_id}",
                            timeout=5)
-        return jsonify(resp.json()), resp.status_code
+        try:
+            return jsonify(resp.json()), resp.status_code
+        except ValueError:
+            logger.error(f"JMeter API returned non-JSON for status {test_id}: {resp.status_code}")
+            return jsonify({'status': 'error', 'message': 'Invalid response from JMeter API'}), 502
     except http.exceptions.RequestException as e:
         logger.error(f"Error getting test status: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -320,7 +334,11 @@ def get_test_results(test_id):
             if resp.status_code != 202:
                 break
             time.sleep(2)
-        return jsonify(resp.json()), resp.status_code
+        try:
+            return jsonify(resp.json()), resp.status_code
+        except ValueError:
+            logger.error(f"JMeter API returned non-JSON for results {test_id}: {resp.status_code}")
+            return jsonify({'status': 'error', 'message': 'Invalid response from JMeter API'}), 502
     except http.exceptions.RequestException as e:
         logger.error(f"Error getting test results: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -338,9 +356,26 @@ def stop_load_test(test_id):
     try:
         resp = _jmeter.post(f"{config.JMETER_API_URL}/api/load-test/stop/{test_id}",
                             timeout=10)
-        return jsonify(resp.json()), resp.status_code
+        try:
+            return jsonify(resp.json()), resp.status_code
+        except ValueError:
+            return jsonify({'status': 'error', 'message': 'Invalid response from JMeter API'}), 502
     except http.exceptions.RequestException as e:
         logger.error(f"Error stopping test: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@test_bp.route('/api/test/restore', methods=['POST'])
+def restore_tests():
+    """Trigger scan & restore semua test dari disk di JMeter API."""
+    try:
+        resp = _jmeter.post(f"{config.JMETER_API_URL}/api/load-test/restore", timeout=30)
+        try:
+            return jsonify(resp.json()), resp.status_code
+        except ValueError:
+            return jsonify({'status': 'error', 'message': 'Invalid response from JMeter API'}), 502
+    except http.exceptions.RequestException as e:
+        logger.error(f"Error restoring tests: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
@@ -349,7 +384,10 @@ def list_load_tests():
     """Ambil daftar semua test yang tersimpan di memori JMeter API."""
     try:
         resp = _jmeter.get(f"{config.JMETER_API_URL}/api/load-test/list", timeout=5)
-        return jsonify(resp.json()), resp.status_code
+        try:
+            return jsonify(resp.json()), resp.status_code
+        except ValueError:
+            return jsonify({'status': 'error', 'message': 'Invalid response from JMeter API'}), 502
     except http.exceptions.RequestException as e:
         logger.error(f"Error listing tests: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500

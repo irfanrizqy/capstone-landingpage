@@ -44,6 +44,44 @@
         </div>
     </div>
 
+    <!-- Modal Detail Riwayat Test -->
+    <div class="modal fade" id="historyDetailModal" tabindex="-1" aria-labelledby="historyDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="historyDetailModalLabel">
+                        📊 Detail Hasil Test — <code id="modalTestId">--</code>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body" id="historyModalBody">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-success"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-primary btn-sm" id="modalDownloadJsonBtn">📥 JSON</button>
+                    <button class="btn btn-outline-success btn-sm" id="modalDownloadSummaryCsvBtn">📊 CSV Ringkasan</button>
+                    <button class="btn btn-outline-warning btn-sm" id="modalDownloadRequestsCsvBtn">🧾 CSV Request</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay Konfirmasi File Besar (custom overlay — tidak pakai Bootstrap Modal agar tidak konflik dengan historyDetailModal) -->
+    <div class="admin-modal-overlay" id="fileSizeWarningOverlay" style="display:none">
+        <div class="admin-modal">
+            <h5>⚠️ File Terlalu Besar</h5>
+            <div id="fileSizeWarningBody"></div>
+            <button class="btn-confirm" id="fileSizeWarningForceBtn"
+                    style="background:linear-gradient(135deg,#D97706,#F59E0B);">
+                Paksakan Unduh
+            </button>
+            <button class="btn-cancel" id="fileSizeWarningCancelBtn">Batalkan</button>
+        </div>
+    </div>
+
     <!-- Navbar -->
     <nav class="dashboard-navbar">
         <div class="container-fluid d-flex justify-content-between align-items-center px-4">
@@ -390,6 +428,8 @@
                                             <li>Target: <code id="summaryTarget">--</code></li>
                                             <li>Durasi: <span id="summaryDuration">--</span>s</li>
                                             <li>Test ID: <code id="summaryTestId">--</code></li>
+                                            <li>Waktu Mulai: <span id="summaryStartTime">--</span></li>
+                                            <li>Waktu Selesai: <span id="summaryEndTime">--</span></li>
                                         </ul>
                                     </div>
                                 </div>
@@ -407,6 +447,41 @@
                                 </div>
                             </div>
 
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 3: Riwayat Test -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h4 class="dashboard-section-title">📋 RIWAYAT TEST</h4>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <small class="text-muted" id="historyStatus">Memuat riwayat...</small>
+                            <button class="btn btn-sm btn-outline-secondary" id="historyRefreshBtn">🔄 Refresh</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Test ID</th>
+                                        <th>Target</th>
+                                        <th>Status</th>
+                                        <th>Threads</th>
+                                        <th>Durasi</th>
+                                        <th>Waktu Mulai</th>
+                                        <th>Avg RT</th>
+                                        <th>Error Rate</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <tr><td colspan="9" class="text-center text-muted py-3">Memuat...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -453,7 +528,8 @@
         const SERVER_IP        = "{{ server_ip }}";
         const SERVER_HOSTNAME  = "{{ server_hostname }}";
         // Nilai dari config.py — ubah di sana, bukan di sini
-        const ADMIN_PASSWORD    = "{{ admin_password }}";
+        const ADMIN_PASSWORD       = "{{ admin_password }}";
+        const LARGE_FILE_WARNING_MB = {{ large_file_warning_mb }};
         const USER_MAX_THREADS  = {{ user_max_threads }};
         const USER_MAX_DURATION = {{ user_max_duration }};
         const USER_MAX_PHASES   = {{ user_max_phases }};
@@ -465,6 +541,7 @@
     <script src="{{ url_for('static', filename='js/app-results.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', filename='js/app-disk.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', filename='js/metrics.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/app-history.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}?v={{ app_version }}"></script>
 </body>
 </html>

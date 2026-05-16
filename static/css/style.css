@@ -215,29 +215,6 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
 }
 
-.navbar__link::after {
-  content: '';
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 5px;
-  height: 2px;
-  background: linear-gradient(135deg, var(--green-900), var(--green-500));
-  border-radius: var(--radius-full);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform 0.25s ease;
-}
-
-.navbar__link:hover::after,
-.navbar__link.active::after {
-  transform: scaleX(1);
-}
-
-.navbar__link:hover {
-  transform: translateY(-1px);
-}
-
 /* Mobile menu */
 .navbar__toggle {
   display: none;

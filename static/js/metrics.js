@@ -20,6 +20,10 @@ let previousMetrics = {
     timestamp: Date.now()
 };
 
+// Status Node Exporter terakhir — dibaca oleh updateFooterStatus agar tidak
+// fetch /api/metrics/current dua kali (satu dari fetchCurrentMetrics, satu dari footer)
+let _lastNodeExporterOk = null;
+
 // Instance grafik sparkline network
 let networkInChart = null;
 let networkOutChart = null;
@@ -208,6 +212,18 @@ function updateNetworkMetrics(receiveBytes, transmitBytes) {
  * Jika berhasil, memperbarui CPU, RAM, network, dan timestamp terakhir diperbarui.
  * Error dicatat ke console tanpa mengganggu tampilan (graceful degradation).
  */
+function _updateNodeExporterBadge() {
+    const badge = document.getElementById('footerNodeExporter');
+    if (!badge) return;
+    if (_lastNodeExporterOk === true) {
+        badge.textContent = 'Node Exporter: Online';
+        badge.className   = 'badge bg-success';
+    } else if (_lastNodeExporterOk === false) {
+        badge.textContent = 'Node Exporter: Offline';
+        badge.className   = 'badge bg-danger';
+    }
+}
+
 async function fetchCurrentMetrics() {
     try {
         const response = await fetch('/api/metrics/current');
@@ -221,12 +237,16 @@ async function fetchCurrentMetrics() {
 
             const now = new Date();
             document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
+            _lastNodeExporterOk = true;
         } else {
             console.error('Failed to fetch metrics:', data.message);
+            _lastNodeExporterOk = false;
         }
     } catch (error) {
         console.error('Error fetching metrics:', error);
+        _lastNodeExporterOk = false;
     }
+    _updateNodeExporterBadge();
 }
 
 /**
@@ -257,23 +277,8 @@ async function updateFooterStatus() {
         jmeterBadge.className   = 'badge bg-danger';
     }
 
-    try {
-        const metricsResponse = await fetch('/api/metrics/current');
-        const metricsData     = await metricsResponse.json();
-
-        const nodeExporterBadge = document.getElementById('footerNodeExporter');
-        if (metricsData.status === 'success') {
-            nodeExporterBadge.textContent = 'Node Exporter: Online';
-            nodeExporterBadge.className   = 'badge bg-success';
-        } else {
-            nodeExporterBadge.textContent = 'Node Exporter: Offline';
-            nodeExporterBadge.className   = 'badge bg-danger';
-        }
-    } catch (error) {
-        const nodeExporterBadge = document.getElementById('footerNodeExporter');
-        nodeExporterBadge.textContent = 'Node Exporter: Error';
-        nodeExporterBadge.className   = 'badge bg-danger';
-    }
+    // Gunakan status terakhir dari fetchCurrentMetrics() — tidak perlu fetch ulang
+    _updateNodeExporterBadge();
 }
 
 // Inisialisasi saat halaman siap

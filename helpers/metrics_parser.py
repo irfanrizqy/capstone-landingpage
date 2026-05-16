@@ -79,13 +79,13 @@ def parse_node_exporter_metrics(metrics_text):
                 if len(parts) >= 2:
                     memory_available = float(parts[1])
 
-            # Jumlahkan semua interface jaringan
-            if line.startswith('node_network_receive_bytes_total{'):
+            # Jumlahkan semua interface jaringan kecuali loopback (lo)
+            if line.startswith('node_network_receive_bytes_total{') and 'device="lo"' not in line:
                 parts = line.split()
                 if len(parts) >= 2:
                     metrics['network_receive_bytes'] += float(parts[1])
 
-            if line.startswith('node_network_transmit_bytes_total{'):
+            if line.startswith('node_network_transmit_bytes_total{') and 'device="lo"' not in line:
                 parts = line.split()
                 if len(parts) >= 2:
                     metrics['network_transmit_bytes'] += float(parts[1])
