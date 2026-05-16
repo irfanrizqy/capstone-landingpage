@@ -6,6 +6,15 @@
  * Bergantung pada: app-state.js
  */
 
+// ==================== UTILS ====================
+
+function _fmtDateTime(isoStr) {
+    if (!isoStr) return '--';
+    try {
+        return new Date(isoStr).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'medium' });
+    } catch { return isoStr; }
+}
+
 // ==================== FETCH & DISPLAY RESULTS ====================
 
 /**
@@ -22,18 +31,24 @@
  *
  * @param {boolean} isMulti - true jika ini bagian dari multi-phase test
  */
-async function fetchResults(isMulti) {
+async function fetchResults(isMulti, attempt = 0) {
     if (!currentTestId) return;
+    // Batas 90 percobaan ≈ 3 menit. Cegah rekursi tak terbatas jika parse JTL gagal di server.
+    if (attempt >= 90) {
+        updateStatus('error', '⏰ Timeout: server belum selesai memproses hasil setelah 3 menit. Coba reload halaman.');
+        setBadge('Error', 'danger');
+        return;
+    }
     try {
         const resp = await fetch(`/api/test/results/${currentTestId}`);
         const data = await resp.json();
 
         // Hasil belum siap (post-processing masih berjalan di server) — retry tiap 2 detik
         if (resp.status === 202 || data.status === 'processing') {
-            updateStatus('pending', '⏳ Memproses hasil test, harap tunggu...');
+            updateStatus('pending', `⏳ Memproses hasil test, harap tunggu... (${attempt + 1})`);
             setBadge('Processing...', 'info');
             await sleep(2000);
-            return fetchResults(isMulti);
+            return fetchResults(isMulti, attempt + 1);
         }
 
         if (!resp.ok || !data.summary) {
@@ -118,11 +133,16 @@ async function fetchResults(isMulti) {
             }
         } else {
             displayResults(summary, false);
+            // Isi waktu setelah displayResults() agar tidak di-reset oleh isPartial=false
+            document.getElementById('summaryStartTime').textContent =
+                data.start_time ? _fmtDateTime(data.start_time) : '--';
+            document.getElementById('summaryEndTime').textContent =
+                data.end_time ? _fmtDateTime(data.end_time) : '--';
             if (summary.timeline?.length > 0) updateChartSingle(summary.timeline);
             updateStatus('completed', 'Test selesai.');
             setBadge('Completed', 'success');
         }
-    } catch(err) { updateStatus('error', 'Error: ' + err.message); }
+    } catch(err) { updateStatus('error', 'Error: ' + err.message); setBadge('Error', 'danger'); }
 }
 
 /**
@@ -178,9 +198,12 @@ function displayMultiPhaseResults() {
 
     // isPartial=true: kita set sendiri summary fields setelah ini agar tidak ditimpa
     displayResults(merged, true);
-    document.getElementById('summaryTarget').textContent   = currentTestParams?.target_url || '--';
-    document.getElementById('summaryDuration').textContent = totalDur + 's (multi-phase)';
-    document.getElementById('summaryTestId').textContent   = allPhaseTestIds.join(', ');
+    document.getElementById('summaryTarget').textContent    = currentTestParams?.target_url || '--';
+    document.getElementById('summaryDuration').textContent  = totalDur + 's (multi-phase)';
+    document.getElementById('summaryTestId').textContent    = allPhaseTestIds.join(', ');
+    // Multi-phase tidak punya single start/end time; reset agar tidak tampil nilai test sebelumnya
+    document.getElementById('summaryStartTime').textContent = '--';
+    document.getElementById('summaryEndTime').textContent   = '--';
 }
 
 /**
@@ -233,6 +256,9 @@ function displayResults(summary, isPartial) {
         document.getElementById('summaryDuration').textContent =
             (dur != null) ? dur + 's' : '--';
         document.getElementById('summaryTestId').textContent   = currentTestId || '--';
+        // Reset waktu — diisi oleh fetchResults() sesudah memanggil displayResults()
+        document.getElementById('summaryStartTime').textContent = '--';
+        document.getElementById('summaryEndTime').textContent   = '--';
     }
 
     successRateChart.data.datasets[0].data = [
@@ -361,6 +387,11 @@ function resetChart() {
     responseTimeChart._boundaries = [];
     rampBoundaryIndices = [];
     responseTimeChart.update('none');
+
+    // Reset donut chart ke state netral (100% success) agar tidak tampilkan data test lama
+    // saat test baru sedang berjalan (sebelum hasil tersedia)
+    successRateChart.data.datasets[0].data = [100, 0];
+    successRateChart.update('none');
 }
 
 /**

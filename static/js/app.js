@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try { setupDownloads();    } catch(e) { console.error('setupDownloads:', e); }
     try { initPhases();        } catch(e) { console.error('initPhases:', e); }
     try { setupCleanupModal(); } catch(e) { console.error('setupCleanupModal:', e); }
+    try { initHistory();       } catch(e) { console.error('initHistory:', e); }
 
     updateDiskBadge();
     setInterval(updateDiskBadge, 30000);

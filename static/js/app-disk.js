@@ -207,6 +207,49 @@ async function downloadCsv(type, btn) {
  * Download request-level CSV secara on-demand.
  * Klik tombol → generate di server → progress bar → otomatis download saat siap.
  */
+
+function confirmLargeRequestCsv(sizeMb, filePath) {
+    return new Promise((resolve) => {
+        const pathHtml = filePath
+            ? `<p style="font-size:0.82rem;color:#6B7280;margin-top:8px;word-break:break-all">
+                   Path server: <code>${filePath}</code>
+               </p>`
+            : '';
+
+        document.getElementById('fileSizeWarningBody').innerHTML = `
+            <p style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:10px;font-size:0.88rem;color:#92400E;margin-bottom:12px">
+                Ukuran file: <strong>${sizeMb.toFixed(0)} MB</strong>
+            </p>
+            <p style="font-size:0.88rem;color:#374151;margin-bottom:4px">
+                Mengunduh file sebesar ini via browser bisa memakan waktu lama dan berisiko gagal di tengah jalan.
+            </p>
+            <p style="font-size:0.88rem;color:#374151;margin-bottom:0">
+                Disarankan: gunakan <strong>FileZilla</strong> untuk mengambil file langsung dari server.
+            </p>
+            ${pathHtml}
+        `;
+
+        const overlay   = document.getElementById('fileSizeWarningOverlay');
+        const forceBtn  = document.getElementById('fileSizeWarningForceBtn');
+        const cancelBtn = document.getElementById('fileSizeWarningCancelBtn');
+
+        overlay.style.display = 'flex';
+
+        function cleanup(result) {
+            overlay.style.display = 'none';
+            forceBtn.removeEventListener('click', onForce);
+            cancelBtn.removeEventListener('click', onCancel);
+            resolve(result);
+        }
+
+        function onForce()  { cleanup(true); }
+        function onCancel() { cleanup(false); }
+
+        forceBtn.addEventListener('click', onForce, { once: true });
+        cancelBtn.addEventListener('click', onCancel, { once: true });
+    });
+}
+
 async function downloadRequestsCsvOnDemand(btn) {
     const ids = allPhaseTestIds.length > 0 ? allPhaseTestIds : (currentTestId ? [currentTestId] : []);
     if (!ids.length) { alert('Belum ada test selesai.'); return; }
@@ -242,25 +285,46 @@ async function downloadRequestsCsvOnDemand(btn) {
             if (genData.status === 'error') throw new Error(genData.message);
 
             let elapsed = 0;
+            let lastStData = {};
             while (true) {
                 await sleep(2000); elapsed += 2;
                 const stResp = await fetch(`/api/test/results/${ids[0]}/requests/csv/status`);
                 if (!stResp.ok) continue;
-                const stData = await stResp.json();
-                if (stData.status === 'ready') break;
-                if (stData.status === 'error') throw new Error('Server error saat generate CSV');
+                lastStData = await stResp.json();
+                if (lastStData.status === 'ready') break;
+                if (lastStData.status === 'error') throw new Error('Server error saat generate CSV');
                 setMsg(`Memproses log request... (${elapsed}s — biasanya 1–2 menit)`);
+            }
+
+            if (lastStData.size_mb && lastStData.size_mb > LARGE_FILE_WARNING_MB) {
+                setMsg('');
+
+                const proceed = await confirmLargeRequestCsv(
+                    lastStData.size_mb,
+                    lastStData.file_path
+                );
+
+                if (!proceed) {
+                    btn.innerHTML = orig;
+                    btn.disabled = false;
+                    if (progressEl) progressEl.style.display = 'none';
+                    return;
+                }
             }
 
             setMsg('Mengunduh CSV...');
             const dlResp = await fetch(`/api/test/results/${ids[0]}/requests/csv`);
-            if (!dlResp.ok) throw new Error('Gagal unduh CSV');
+            const dlCt = dlResp.headers.get('content-type') || '';
+            if (!dlResp.ok || !dlCt.includes('csv')) {
+                let errMsg = `Server error ${dlResp.status}`;
+                try { const j = await dlResp.json(); errMsg = j.message || errMsg; } catch {}
+                throw new Error(errMsg);
+            }
             triggerDownload(await dlResp.blob(), `${ids[0]}_requests.csv`);
 
         } else {
-            // Multi-phase — generate+poll semua fase, fetch text, merge jadi 1 CSV
-            const phaseTexts = [];
-
+            // Multi-phase — generate+poll semua fase dulu, lalu merge di server
+            let totalSizeMb = 0;
             for (let i = 0; i < ids.length; i++) {
                 const testId = ids[i];
                 const phaseLabel = ` (fase ${i+1}/${ids.length})`;
@@ -280,37 +344,41 @@ async function downloadRequestsCsvOnDemand(btn) {
                     const stResp = await fetch(`/api/test/results/${testId}/requests/csv/status`);
                     if (!stResp.ok) continue;
                     const stData = await stResp.json();
-                    if (stData.status === 'ready') break;
+                    if (stData.status === 'ready') {
+                        totalSizeMb += stData.size_mb || 0;
+                        break;
+                    }
                     if (stData.status === 'error') throw new Error(`Server error saat generate CSV${phaseLabel}`);
                     setMsg(`Memproses log request${phaseLabel}... (${elapsed}s — biasanya 1–2 menit)`);
                 }
-
-                // 3. Ambil teks CSV (belum download)
-                setMsg(`Mengambil data${phaseLabel}...`);
-                const dlResp = await fetch(`/api/test/results/${testId}/requests/csv`);
-                if (!dlResp.ok) throw new Error(`Gagal ambil CSV${phaseLabel}`);
-                phaseTexts.push(await dlResp.text());
             }
 
-            // 4. Merge semua fase menjadi 1 CSV dengan kolom phase di depan
-            setMsg('Menggabungkan semua fase...');
-            let header = null;
-            const rows = [];
-            for (let i = 0; i < phaseTexts.length; i++) {
-                const lines = phaseTexts[i]
-                    .replace(/^﻿/, '')
-                    .split('\n')
-                    .map(l => l.trim())
-                    .filter(l => l && !l.startsWith('sep='));
-                if (lines.length < 2) continue;
-                if (!header) header = `phase;${lines[0]}`;
-                lines.slice(1).forEach(row => rows.push(`fase_${i+1};${row}`));
-            }
-            if (!header) throw new Error('Tidak ada data CSV.');
+            // Semua fase siap — cek total ukuran sebelum download
+            if (totalSizeMb > LARGE_FILE_WARNING_MB) {
+                setMsg('');
 
-            const csv  = `sep=;\n${header}\n${rows.join('\n')}`;
-            const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-            triggerDownload(blob, `multiphase_${ids[0]}_requests.csv`);
+                const proceed = await confirmLargeRequestCsv(
+                    totalSizeMb,
+                    null
+                );
+
+                if (!proceed) {
+                    btn.innerHTML = orig;
+                    btn.disabled = false;
+                    if (progressEl) progressEl.style.display = 'none';
+                    return;
+                }
+            }
+
+            setMsg('Mengunduh CSV gabungan...');
+            const dlResp = await fetch(`/api/test/results/requests/csv/multi?ids=${ids.join(',')}`);
+            const dlCt = dlResp.headers.get('content-type') || '';
+            if (!dlResp.ok || !dlCt.includes('csv')) {
+                let errMsg = `Server error ${dlResp.status}`;
+                try { const j = await dlResp.json(); errMsg = j.message || errMsg; } catch {}
+                throw new Error(errMsg);
+            }
+            triggerDownload(await dlResp.blob(), `multiphase_${ids[0]}_requests.csv`);
         }
 
         btn.innerHTML = '✅ Berhasil';

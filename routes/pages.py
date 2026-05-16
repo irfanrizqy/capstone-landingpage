@@ -45,6 +45,7 @@ def dashboard():
         default_duration=config.DEFAULT_DURATION,
         refresh_interval=config.METRICS_REFRESH_INTERVAL,
         admin_password=config.ADMIN_PASSWORD,
+        large_file_warning_mb=config.LARGE_FILE_WARNING_MB,
         user_max_threads=config.USER_MAX_THREADS,
         user_max_duration=config.USER_MAX_DURATION,
         user_max_phases=config.USER_MAX_PHASES,
