@@ -14,6 +14,7 @@ const POLL_INTERVAL_MS  = 2000;
 // ==================== STATE ====================
 let isAdminMode         = false;
 let configMode          = 'single';
+let isNoJtlMode         = false;
 
 let currentTestId       = null;   // test_id fase yang sedang berjalan
 let currentTestParams   = null;   // parameter test terakhir yang dimulai

@@ -90,6 +90,7 @@ async function handleStartSingleTest(e) {
 
     isMultiPhaseMode    = false;
     isFetchingResults   = false;
+    isNoJtlMode         = document.getElementById('noJtlToggle')?.checked || false;
     currentTestId       = null;
     currentQueueId      = null;
     allPhaseTestIds     = [];
@@ -97,8 +98,11 @@ async function handleStartSingleTest(e) {
     completedPhasesMs   = 0;
     resetChart();
 
-    currentTestParams = { target_url: targetUrl, num_threads: numThreads, ramp_time: rampTime, duration, http_path: '/',
-                          ...(isAdminMode && { _admin_key: ADMIN_PASSWORD }) };
+    currentTestParams = {
+        target_url: targetUrl, num_threads: numThreads, ramp_time: rampTime, duration, http_path: '/',
+        ...(isAdminMode  && { _admin_key: ADMIN_PASSWORD }),
+        ...(isNoJtlMode  && { no_jtl: true }),
+    };
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Starting...';
 
     try {
@@ -316,6 +320,7 @@ async function handleStartMultiPhase() {
 
     isMultiPhaseMode      = true;
     isFetchingResults     = false;
+    isNoJtlMode           = document.getElementById('noJtlToggle')?.checked || false;
     currentPhaseIndex     = 0;
     currentTestId         = null;
     currentQueueId        = null;
@@ -365,7 +370,8 @@ async function runPhase(targetUrl) {
                 ramp_time:   p.rampTime,
                 duration:    p.duration,
                 http_path:   '/',
-                ...(isAdminMode && { _admin_key: ADMIN_PASSWORD })
+                ...(isAdminMode && { _admin_key: ADMIN_PASSWORD }),
+                ...(isNoJtlMode && { no_jtl: true }),
             })
         });
         const data = await resp.json();
@@ -460,8 +466,8 @@ async function handleStopTest() {
         setBadge('Cancelled', 'secondary');
         resetMultiUI();
         renderPhases();
-        const btn = document.getElementById('startTestBtn');
-        if (btn) { btn.disabled = false; btn.innerHTML = '🚀 START LOAD TEST'; }
+        const btn  = document.getElementById('startTestBtn');
+        if (btn)  { btn.disabled  = false; btn.innerHTML  = '🚀 START LOAD TEST'; }
         return;
     }
     // Tidak ada test aktif — tapi jika multi-phase sedang dalam transisi antar fase,
@@ -504,10 +510,11 @@ function onTestStarted(isMulti) {
     showProgress(true);
     setBadge('Running', 'warning');
     updateStatus('running', '▶️ Test sedang berjalan...');
-    document.getElementById('stopTestBtn').disabled  = false;
+    document.getElementById('stopTestBtn').disabled = false;
     const sm = document.getElementById('stopMultiBtn');
     if (sm) sm.disabled = false;
     lastProgressData = { progress: 0, elapsed: 0, timestamp: Date.now(), isMulti };
     startProgressAnimation();
     startPolling(isMulti);
 }
+

@@ -33,10 +33,10 @@ function stopPolling() {
     // Jangan reset tombol single-test saat sedang di tengah multi-phase (antar fase);
     // biarkan finishMultiPhase() / error path yang mereset setelah isMultiPhaseMode = false.
     if (!isMultiPhaseMode) {
-        const b = document.getElementById('startTestBtn');
-        const s = document.getElementById('stopTestBtn');
-        if (b) { b.disabled = false; b.innerHTML = '🚀 START LOAD TEST'; }
-        if (s) s.disabled = true;
+        const b  = document.getElementById('startTestBtn');
+        const s  = document.getElementById('stopTestBtn');
+        if (b)  { b.disabled  = false; b.innerHTML  = '🚀 START LOAD TEST'; }
+        if (s)  s.disabled  = true;
     }
 }
 

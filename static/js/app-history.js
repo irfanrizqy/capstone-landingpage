@@ -123,6 +123,11 @@ function _renderHistoryTable(tests, sessionMap = {}) {
         const avgRT   = t.summary?.response_time_avg != null ? t.summary.response_time_avg.toFixed(1) + ' ms' : '--';
         const errRate = t.summary?.error_rate != null ? t.summary.error_rate.toFixed(2) + '%' : '--';
 
+        // Badge no_jtl jika test dijalankan dalam mode Hemat Disk
+        const noJtlBadge = t.parameters?.no_jtl
+            ? `<span class="badge bg-secondary ms-1" style="font-size:0.65rem" title="Mode Hemat Disk — tanpa JTL">📁 Tanpa JTL</span>`
+            : '';
+
         // Badge multi-phase jika test ini bagian dari sesi
         const sess = sessionMap[t.test_id];
         const phaseBadge = sess
@@ -146,7 +151,7 @@ function _renderHistoryTable(tests, sessionMap = {}) {
         }
 
         return `<tr>
-            <td><code style="font-size:0.72rem">${t.test_id}</code>${phaseBadge}</td>
+            <td><code style="font-size:0.72rem">${t.test_id}</code>${phaseBadge}${noJtlBadge}</td>
             <td title="${target}" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${shortT}</td>
             <td>${statusBadge}</td>
             <td>${threads}</td>
@@ -316,7 +321,16 @@ function _renderHistoryModal(testId, data) {
     if (csvSumBtn) csvSumBtn.onclick = () => _handleModalSummaryCsv(testId, csvSumBtn);
 
     const csvReqBtn = document.getElementById('modalDownloadRequestsCsvBtn');
-    if (csvReqBtn) csvReqBtn.onclick = () => _handleModalRequestsCsv(testId, csvReqBtn);
+    if (csvReqBtn) {
+        if (data.parameters?.no_jtl) {
+            csvReqBtn.disabled = true;
+            csvReqBtn.title    = 'Tidak tersedia — mode Hemat Disk (tanpa JTL)';
+        } else {
+            csvReqBtn.disabled = false;
+            csvReqBtn.title    = '';
+            csvReqBtn.onclick  = () => _handleModalRequestsCsv(testId, csvReqBtn);
+        }
+    }
 }
 
 function _setModalDownloadProgress(btn, message, variant = 'success') {
@@ -696,8 +710,12 @@ async function _dlMultiRequests(idsParam, btn) {
             btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${lbl}`;
 
             const genResp = await fetch(`/api/test/results/${testId}/requests/csv/generate`, { method: 'POST' });
-            if (!genResp.ok) throw new Error(`Gagal generate fase ${i + 1}`);
-            const genData = await genResp.json();
+            const genData = await genResp.json().catch(() => ({}));
+            if (!genResp.ok) {
+                // Skip fase yang mode Hemat Disk (tidak ada JTL)
+                if (genData.message?.includes('Hemat Disk')) continue;
+                throw new Error(`Gagal generate fase ${i + 1}: ${genData.message || genResp.status}`);
+            }
             if (genData.status === 'error') throw new Error(genData.message);
 
             let elapsed = 0;
