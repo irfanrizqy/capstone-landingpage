@@ -15,6 +15,18 @@ function _fmtDateTime(isoStr) {
     } catch { return isoStr; }
 }
 
+/**
+ * Nonaktifkan tombol unduh CSV request ketika mode Hemat Disk aktif (no_jtl=true).
+ * Summary CSV dan JSON masih tersedia karena summary.json tetap ditulis.
+ */
+function _disableNoJtlDownloads() {
+    const reqBtn = document.getElementById('downloadRequestsCsvBtn');
+    if (reqBtn) {
+        reqBtn.disabled = true;
+        reqBtn.title    = 'Tidak tersedia — mode Hemat Disk (tanpa JTL)';
+    }
+}
+
 // ==================== FETCH & DISPLAY RESULTS ====================
 
 /**
@@ -71,6 +83,12 @@ async function fetchResults(isMulti, attempt = 0) {
         }
 
         const summary = data.summary;
+
+        // Jika mode Hemat Disk: nonaktifkan tombol unduh CSV request
+        if (summary.no_jtl) {
+            isNoJtlMode = true;
+            _disableNoJtlDownloads();
+        }
 
         if (isMulti) {
             // Catat indeks awal fase ini di timeline (untuk boundary)

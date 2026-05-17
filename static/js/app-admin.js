@@ -70,7 +70,8 @@ function setAdminMode(active) {
         if (n) n.style.display = '';
         if (m) m.style.display = '';
         lockOptions();
-        document.getElementById('customInputsRow').style.display   = 'none';
+        const customRow = document.getElementById('customInputsRow');
+        if (customRow) customRow.style.display = 'none';
         document.getElementById('customThreadsDiv').style.display  = 'none';
         document.getElementById('customRampDiv').style.display     = 'none';
         document.getElementById('customDurationDiv').style.display = 'none';
@@ -137,7 +138,7 @@ function unlockOptions() {
 function switchConfigMode(mode) {
     configMode = mode;
     document.getElementById('tabSingle').classList.toggle('active', mode === 'single');
-    document.getElementById('tabMulti').classList.toggle('active', mode === 'multi');
+    document.getElementById('tabMulti').classList.toggle('active',  mode === 'multi');
     document.getElementById('singleTestPanel').style.display = mode === 'single' ? '' : 'none';
     document.getElementById('multiPhasePanel').style.display = mode === 'multi'  ? '' : 'none';
 }
